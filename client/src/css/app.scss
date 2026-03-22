@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Tomorrow:wght@400;500;600;700&display=swap');
+
+// Gradient background (animated)
+.gradient-bg {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #9945ff, #ffffff, #14f195);
+  background-size: 400% 400%;
+  animation: gradientAnimation 15s ease infinite;
+}
+
+@keyframes gradientAnimation {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+// Glassmorphism cards
+.glass-card {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-card-dark {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+// Glass header
+.glass-header {
+  background: rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+// Typography
+.text-brand-purple {
+  color: #9945FF;
+}
+
+.text-brand-green {
+  color: #14F195;
+}
+
+.bg-brand-purple {
+  background-color: #9945FF;
+}
+
+.bg-brand-green {
+  background-color: #14F195;
+}
+
+// Page container with gradient
+.page-container {
+  min-height: 100vh;
+  padding: 16px;
+  background: linear-gradient(135deg, #9945ff, #ffffff, #14f195);
+  background-size: 400% 400%;
+  animation: gradientAnimation 15s ease infinite;
+}
+
+// Activity feed styles
+.activity-item {
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.activity-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.activity-note { border-left-color: #9945FF; }
+.activity-status { border-left-color: #14F195; }
+.activity-task { border-left-color: #31CCEC; }
+.activity-payment { border-left-color: #21BA45; }
+.activity-call { border-left-color: #F2C037; }
+
+// Status badge colors
+.status-lead { background: #9e9e9e; }
+.status-qualified { background: #2196F3; }
+.status-design_scheduled { background: #9945FF; }
+.status-contract_sent { background: #FF9800; }
+.status-contract_signed { background: #21BA45; }
+.status-production_scheduled { background: #9C27B0; }
+.status-in_production { background: #14F195; color: #1D1D1D; }
+.status-completed { background: #21BA45; }
+.status-cancelled { background: #C10015; }
+
+// Timeline connector
+.timeline-connector {
+  position: absolute;
+  left: 20px;
+  top: 40px;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.3);
+}
