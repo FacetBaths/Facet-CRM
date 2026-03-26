@@ -81,10 +81,10 @@ export interface IProject extends Document {
   customerId: Types.ObjectId;
   type: 'renovation' | 'service' | 'warranty' | 'retail';
   parentProjectId?: Types.ObjectId; // for service calls linked to original reno
-  status: 'lead' | 'qualified' | 'design_scheduled' | 'contract_sent' | 'contract_signed' | 
-          'rescission_period' | 'materials_ordered' | 'production_scheduled' | 
+  status: 'lead' | 'qualified' | 'design_scheduled' | 'contract_sent' | 'contract_signed' |
+          'rescission_period' | 'materials_ordered' | 'production_scheduled' |
           'in_production' | 'final_walkthrough' | 'completed' | 'cancelled';
-  
+
   // Project info
   title: string;
   description?: string;
@@ -94,7 +94,7 @@ export interface IProject extends Document {
     state: string;
     zip: string;
   };
-  
+
   // Sales
   assignedSalesId?: Types.ObjectId;
   source?: string;
@@ -102,41 +102,71 @@ export interface IProject extends Document {
   designAppointmentDate?: Date;
   contractDate?: Date;
   contractAmount: number;
-  
+
   // Line items (snapshot)
   lineItems: IProjectLineItem[];
-  
+
   // Workflow tasks
   tasks: IProjectTask[];
-  
+
   // Activity feed
   activities: IProjectActivity[];
-  
+
   // Change orders
   changeOrders: IChangeOrder[];
-  
+
   // Payment terms
   paymentTerms: {
     type: 'standard' | 'payment_plan';
     total: number;
     milestones: IPaymentScheduleMilestone[];
   };
-  
+
+  // Commission tracking - supports split commissions and spiffs
+  commission: {
+    // Sales reps - can be split between multiple
+    salesReps: {
+      userId: Types.ObjectId;
+      splitPercent: number; // e.g., 50 for 50/50
+      amount: number;
+      paid: boolean;
+      paidDate?: Date;
+    }[];
+    // BDC (who set appointment)
+    bdcRepId?: Types.ObjectId;
+    bdcAmount: number;
+    bdcPaid: boolean;
+    bdcPaidDate?: Date;
+    // Spiffs/bonuses - extra incentives
+    spiffs: {
+      description: string;
+      amount: number;
+      awardedTo: Types.ObjectId;
+      paid: boolean;
+      paidDate?: Date;
+    }[];
+    // Admin tracking
+    adminPaid: boolean;
+    adminPaidDate?: Date;
+    calculatedAt?: Date;
+    calcMethod?: 'flat' | 'percentage'; // how sales was calculated
+  };
+
   // Actual payments
   payments: IProjectPayment[];
-  
+
   // Expenses (for PnL)
   expenses: IProjectExpense[];
-  
+
   // Production
   materialsOrderedDate?: Date;
   productionStartDate?: Date;
   productionEndDate?: Date;
   estimatedCompletionDate?: Date;
-  
+
   // Warranty
   warrantyStartDate?: Date;
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -231,6 +261,41 @@ const ProjectExpenseSchema = new Schema<IProjectExpense>(
   { _id: true }
 );
 
+const PaymentTermsSchema = new Schema({
+  type: { type: String, enum: ['standard', 'payment_plan'], default: 'standard' },
+  total: { type: Number, default: 0 },
+  milestones: { type: [PaymentScheduleMilestoneSchema], default: [] },
+}, { _id: false });
+
+const CommissionSchema = new Schema({
+  // Sales reps - supports split commissions
+  salesReps: [{
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    splitPercent: { type: Number, default: 100 }, // 50 for 50/50 split
+    amount: { type: Number, default: 0 },
+    paid: { type: Boolean, default: false },
+    paidDate: { type: Date },
+  }],
+  // BDC rep
+  bdcRepId: { type: Schema.Types.ObjectId, ref: 'User' },
+  bdcAmount: { type: Number, default: 0 },
+  bdcPaid: { type: Boolean, default: false },
+  bdcPaidDate: { type: Date },
+  // Spiffs/bonuses
+  spiffs: [{
+    description: { type: String, required: true },
+    amount: { type: Number, required: true },
+    awardedTo: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    paid: { type: Boolean, default: false },
+    paidDate: { type: Date },
+  }],
+  // Admin tracking
+  adminPaid: { type: Boolean, default: false },
+  adminPaidDate: { type: Date },
+  calculatedAt: { type: Date },
+  calcMethod: { type: String, enum: ['flat', 'percentage'] },
+}, { _id: false });
+
 const ProjectSchema = new Schema<IProject>(
   {
     projectNumber: { type: String, required: true, unique: true, index: true },
@@ -272,6 +337,7 @@ const ProjectSchema = new Schema<IProject>(
     },
     payments: { type: [ProjectPaymentSchema], default: [] },
     expenses: { type: [ProjectExpenseSchema], default: [] },
+    commission: { type: CommissionSchema, default: () => ({}) },
     materialsOrderedDate: { type: Date },
     productionStartDate: { type: Date },
     productionEndDate: { type: Date },

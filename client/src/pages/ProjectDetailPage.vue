@@ -73,6 +73,58 @@
             <q-btn color="warning" icon="edit" label="Change Order" @click="showChangeOrder = true" unelevated />
           </div>
         </div>
+
+        <!-- Commission Card -->
+        <div class="glass-card q-pa-md q-mt-md" v-if="project.commission?.calculatedAt">
+          <div class="text-subtitle2 text-grey-7 q-mb-sm row items-center justify-between">
+            <span>Commission</span>
+            <q-btn flat round icon="refresh" size="sm" @click="calculateCommission" :loading="calculating" />
+          </div>
+          
+          <!-- Sales Commission -->
+          <div v-if="project.commission.salesRepId" class="q-mb-sm">
+            <div class="row justify-between items-center">
+              <div>
+                <div class="text-caption text-grey-7">Sales Rep</div>
+                <div class="text-body2">${{ project.commission.salesAmount?.toLocaleString() }}</div>
+              </div>
+              <q-btn
+                v-if="!project.commission.salesPaid"
+                label="Pay"
+                color="positive"
+                size="sm"
+                @click="markCommissionPaid('sales')"
+              />
+              <q-badge v-else color="positive">Paid</q-badge>
+            </div>
+          </div>
+
+          <!-- BDC Commission -->
+          <div v-if="project.commission.bdcRepId" class="q-mb-sm">
+            <div class="row justify-between items-center">
+              <div>
+                <div class="text-caption text-grey-7">BDC</div>
+                <div class="text-body2">${{ project.commission.bdcAmount?.toLocaleString() }}</div>
+              </div>
+              <q-btn
+                v-if="!project.commission.bdcPaid"
+                label="Pay"
+                color="positive"
+                size="sm"
+                @click="markCommissionPaid('bdc')"
+              />
+              <q-badge v-else color="positive">Paid</q-badge>
+            </div>
+          </div>
+
+          <div class="text-caption text-grey-7 q-mt-sm">
+            Calculated {{ formatDate(project.commission.calculatedAt) }}
+          </div>
+        </div>
+
+        <div v-else class="glass-card q-pa-md q-mt-md">
+          <q-btn color="primary" icon="calculate" label="Calculate Commission" @click="calculateCommission" :loading="calculating" class="full-width" />
+        </div>
       </div>
 
       <!-- Right Column: Activity Feed -->
@@ -467,6 +519,33 @@ const addPayment = async () => {
     $q.notify({ type: 'negative', message: 'Failed to record payment' });
   } finally {
     adding.value = false;
+  }
+};
+
+// Commission functions
+const calculating = ref(false);
+
+const calculateCommission = async () => {
+  calculating.value = true;
+  try {
+    await api.post(`/projects/${route.params.id}/calculate-commission`);
+    $q.notify({ type: 'positive', message: 'Commission calculated' });
+    // Refresh project to get updated commission data
+    await projectStore.fetchProject(route.params.id as string);
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to calculate commission' });
+  } finally {
+    calculating.value = false;
+  }
+};
+
+const markCommissionPaid = async (type: 'sales' | 'bdc') => {
+  try {
+    await api.post(`/projects/${route.params.id}/commission/pay`, { type });
+    $q.notify({ type: 'positive', message: 'Commission marked as paid' });
+    await projectStore.fetchProject(route.params.id as string);
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to mark commission as paid' });
   }
 };
 

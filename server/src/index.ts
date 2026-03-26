@@ -17,6 +17,7 @@ import projectRoutes from './routes/projects';
 import productRoutes from './routes/products';
 import vendorRoutes from './routes/vendors';
 import subscriptionRoutes from './routes/subscriptions';
+import commissionRoutes from './routes/commissions';
 
 dotenv.config();
 
@@ -68,6 +69,7 @@ app.use('/api/projects', authMiddleware, projectRoutes);
 app.use('/api/products', authMiddleware, productRoutes);
 app.use('/api/vendors', authMiddleware, vendorRoutes);
 app.use('/api/subscriptions', authMiddleware, subscriptionRoutes);
+app.use('/api/commissions', authMiddleware, commissionRoutes);
 
 // Socket.io connection handling
 io.on('connection', (socket) => {

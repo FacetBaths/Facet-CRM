@@ -6,7 +6,7 @@
   "author": "Facet Renovations",
   "private": true,
   "scripts": {
-    "dev": "quasar dev",
+    "dev": "./node_modules/.bin/quasar dev",
     "build": "quasar build",
     "build:pwa": "quasar build -m pwa",
     "lint": "eslint --ext .js,.ts,.vue ./",
@@ -17,13 +17,13 @@
     "@quasar/extras": "^1.16.9",
     "axios": "^1.6.2",
     "pinia": "^2.1.7",
-    "quasar": "^2.14.2",
+    "quasar": "^2.18.7",
     "socket.io-client": "^4.7.2",
     "vue": "^3.3.11",
     "vue-router": "^4.2.5"
   },
   "devDependencies": {
-    "@quasar/app-vite": "^1.7.1",
+    "@quasar/app-vite": "^2.5.2",
     "@types/node": "^20.10.4",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",

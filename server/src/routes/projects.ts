@@ -20,6 +20,19 @@ const generateProjectNumber = async (): Promise<string> => {
   return `PR${year}${month}${sequence}`;
 };
 
+// Get projects by customer ID
+router.get('/customer/:customerId', async (req: AuthRequest, res) => {
+  try {
+    const projects = await Project.find({ customerId: req.params.customerId })
+      .populate('assignedSalesId', 'firstName lastName')
+      .sort({ createdAt: -1 });
+    
+    res.json(projects);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch customer projects' });
+  }
+});
+
 // Get all projects
 router.get('/', async (req: AuthRequest, res) => {
   try {
@@ -370,6 +383,231 @@ router.post('/:id/change-orders', async (req: AuthRequest, res) => {
     res.status(201).json(newCO);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create change order' });
+  }
+});
+
+// Calculate commission for a project
+// Commission rules:
+// - Sales/Design: 10% OR $400 flat (toggle-based per user)
+// - BDC: 1% of contract (for setting appointment)
+// - Admin (owner level): 3%
+// - Admin (other): 2%
+router.post('/:id/calculate-commission', async (req: AuthRequest, res) => {
+  try {
+    const { User } = await import('../models/User');
+    const { salesRepIds = [], useFlatRate = false, splitPercentages = [] } = req.body;
+    
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    
+    const contractAmount = project.contractAmount || 0;
+    const commissionData: any = {
+      calculatedAt: new Date(),
+      salesReps: [],
+      spiffs: project.commission?.spiffs || [], // preserve existing spiffs
+    };
+    
+    // Calculate sales commission - supports split
+    if (salesRepIds.length > 0) {
+      const totalPercent = splitPercentages.reduce((sum: number, p: number) => sum + p, 0);
+      const normalizedPercentages = totalPercent === 100 
+        ? splitPercentages 
+        : splitPercentages.map(() => 100 / salesRepIds.length);
+      
+      // Determine base amount (flat or percentage)
+      let baseAmount = 0;
+      let calcMethod: 'flat' | 'percentage' = 'percentage';
+      
+      if (useFlatRate) {
+        baseAmount = 400; // flat rate
+        calcMethod = 'flat';
+      } else {
+        baseAmount = contractAmount * 0.10; // 10%
+        calcMethod = 'percentage';
+      }
+      
+      commissionData.calcMethod = calcMethod;
+      
+      // Split among reps
+      for (let i = 0; i < salesRepIds.length; i++) {
+        const userId = salesRepIds[i];
+        const splitPercent = normalizedPercentages[i] || (100 / salesRepIds.length);
+        const amount = Math.round(baseAmount * (splitPercent / 100) * 100) / 100;
+        
+        commissionData.salesReps.push({
+          userId,
+          splitPercent,
+          amount,
+          paid: false,
+        });
+      }
+    }
+    
+    // Calculate BDC commission (1% of contract)
+    if (project.commission?.bdcRepId) {
+      commissionData.bdcRepId = project.commission.bdcRepId;
+      commissionData.bdcAmount = Math.round(contractAmount * 0.01 * 100) / 100; // 1%
+      commissionData.bdcPaid = project.commission.bdcPaid || false;
+    }
+    
+    // Update project with calculated commission
+    project.commission = { ...project.commission?.toObject(), ...commissionData };
+    await project.save();
+    
+    res.json(project.commission);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to calculate commission' });
+  }
+});
+
+// Add spiff/bonus to a project
+router.post('/:id/spiffs', async (req: AuthRequest, res) => {
+  try {
+    const { description, amount, awardedTo } = req.body;
+    
+    const project = await Project.findByIdAndUpdate(
+      req.params.id,
+      {
+        $push: {
+          'commission.spiffs': {
+            description,
+            amount,
+            awardedTo,
+            paid: false,
+          },
+        },
+      },
+      { new: true }
+    );
+    
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    
+    const newSpiff = project.commission.spiffs[project.commission.spiffs.length - 1];
+    res.status(201).json(newSpiff);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add spiff' });
+  }
+});
+
+// Mark commission as paid (updated for split commissions)
+router.put('/:id/commission/pay', async (req: AuthRequest, res) => {
+  try {
+    const { type, userId, spiffIndex } = req.body; 
+    // type: 'sales', 'bdc', 'admin', or 'spiff'
+    
+    const updateField: any = {};
+    
+    if (type === 'bdc') {
+      updateField['commission.bdcPaid'] = true;
+      updateField['commission.bdcPaidDate'] = new Date();
+    } else if (type === 'admin') {
+      updateField['commission.adminPaid'] = true;
+      updateField['commission.adminPaidDate'] = new Date();
+    } else if (type === 'spiff' && spiffIndex !== undefined) {
+      updateField[`commission.spiffs.${spiffIndex}.paid`] = true;
+      updateField[`commission.spiffs.${spiffIndex}.paidDate`] = new Date();
+    } else if (type === 'sales' && userId) {
+      // Find the specific sales rep in the array
+      const project = await Project.findById(req.params.id);
+      if (!project) {
+        res.status(404).json({ error: 'Project not found' });
+        return;
+      }
+      
+      const salesRepIndex = project.commission.salesReps.findIndex(
+        (sr: any) => sr.userId.toString() === userId
+      );
+      
+      if (salesRepIndex === -1) {
+        res.status(404).json({ error: 'Sales rep not found in commission' });
+        return;
+      }
+      
+      updateField[`commission.salesReps.${salesRepIndex}.paid`] = true;
+      updateField[`commission.salesReps.${salesRepIndex}.paidDate`] = new Date();
+    }
+    
+    const project = await Project.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateField },
+      { new: true }
+    );
+    
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    
+    res.json({ success: true, commission: project.commission });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to mark commission as paid' });
+  }
+});
+
+// Get commission report
+router.get('/commissions/report', async (req: AuthRequest, res) => {
+  try {
+    const { startDate, endDate, userId, role } = req.query;
+    
+    let dateFilter: any = {};
+    if (startDate || endDate) {
+      dateFilter['commission.calculatedAt'] = {};
+      if (startDate) dateFilter['commission.calculatedAt'].$gte = new Date(startDate as string);
+      if (endDate) dateFilter['commission.calculatedAt'].$lte = new Date(endDate as string);
+    }
+    
+    let userFilter: any = {};
+    if (userId) {
+      if (role === 'bdc') {
+        userFilter['commission.bdcRepId'] = userId;
+      } else {
+        userFilter['commission.salesRepId'] = userId;
+      }
+    }
+    
+    const projects = await Project.find({
+      ...dateFilter,
+      ...userFilter,
+      'commission.calculatedAt': { $exists: true },
+    }).populate('customerId', 'firstName lastName')
+      .populate('commission.salesRepId', 'firstName lastName')
+      .populate('commission.bdcRepId', 'firstName lastName')
+      .sort({ 'commission.calculatedAt': -1 });
+    
+    // Calculate totals
+    const report = {
+      projects,
+      totals: {
+        salesCommission: projects.reduce((sum, p) => sum + (p.commission?.salesAmount || 0), 0),
+        bdcCommission: projects.reduce((sum, p) => sum + (p.commission?.bdcAmount || 0), 0),
+        designCommission: projects.reduce((sum, p) => sum + (p.commission?.designAmount || 0), 0),
+        total: 0,
+        paid: 0,
+        unpaid: 0,
+      },
+    };
+    
+    report.totals.total = report.totals.salesCommission + report.totals.bdcCommission + report.totals.designCommission;
+    
+    // Calculate paid/unpaid
+    projects.forEach(p => {
+      if (p.commission?.salesPaid) report.totals.paid += p.commission.salesAmount || 0;
+      else report.totals.unpaid += p.commission?.salesAmount || 0;
+      
+      if (p.commission?.bdcPaid) report.totals.paid += p.commission.bdcAmount || 0;
+      else report.totals.unpaid += p.commission?.bdcAmount || 0;
+    });
+    
+    res.json(report);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate commission report' });
   }
 });
 

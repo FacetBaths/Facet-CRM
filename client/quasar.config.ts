@@ -1,5 +1,5 @@
 import { defineConfig } from '#q-app/wrappers';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig((ctx) => {
   return {
@@ -28,6 +28,13 @@ export default defineConfig((ctx) => {
       },
       vueRouterMode: 'history',
       publicPath: '/',
+      extendViteConf(viteConf, { isClient, isServer }) {
+        viteConf.resolve = viteConf.resolve || {};
+        viteConf.resolve.alias = {
+          ...viteConf.resolve.alias,
+          '@': fileURLToPath(new URL('./src', import.meta.url)),
+        };
+      },
     },
 
     devServer: {

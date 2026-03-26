@@ -8,13 +8,27 @@ interface Customer {
   lastName: string;
   contacts: any[];
   referralSource?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+interface Project {
+  _id: string;
+  projectNumber: string;
+  title: string;
+  status: string;
+  type: string;
+  contractValue: number;
   createdAt: string;
 }
 
 export const useCustomerStore = defineStore('customers', () => {
   const customers = ref<Customer[]>([]);
-  const currentCustomer = ref<any>(null);
+  const currentCustomer = ref<Customer | null>(null);
+  const customerProjects = ref<Project[]>([]);
   const isLoading = ref(false);
+  const projectsLoading = ref(false);
   const searchQuery = ref('');
 
   const fetchCustomers = async () => {
@@ -73,14 +87,30 @@ export const useCustomerStore = defineStore('customers', () => {
     }
   };
 
+  const fetchCustomerProjects = async (id: string) => {
+    projectsLoading.value = true;
+    try {
+      const { data } = await api.get(`/projects/customer/${id}`);
+      customerProjects.value = data;
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch customer projects:', error);
+    } finally {
+      projectsLoading.value = false;
+    }
+  };
+
   return {
     customers,
     currentCustomer,
+    customerProjects,
     isLoading,
+    projectsLoading,
     searchQuery,
     fetchCustomers,
     fetchCustomer,
     createCustomer,
     updateCustomer,
+    fetchCustomerProjects,
   };
 });

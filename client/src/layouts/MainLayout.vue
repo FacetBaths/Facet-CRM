@@ -64,6 +64,7 @@ const navTabs = [
   { path: '/customers', label: 'Customers', icon: 'people' },
   { path: '/subscriptions', label: 'Subscriptions', icon: 'autorenew' },
   { path: '/products', label: 'Products', icon: 'inventory_2' },
+  { path: '/commissions', label: 'Commissions', icon: 'paid' },
 ];
 
 const userRoleLabel = computed(() => {

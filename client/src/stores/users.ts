@@ -9,6 +9,7 @@ interface User {
   email: string;
   role: string;
   isActive: boolean;
+  fullName?: string;
 }
 
 export const useUserStore = defineStore('users', () => {
@@ -16,11 +17,19 @@ export const useUserStore = defineStore('users', () => {
   const isLoading = ref(false);
 
   const salesUsers = computed(() => 
-    users.value.filter(u => ['sales', 'design_consultant'].includes(u.role) && u.isActive)
+    users.value
+      .filter(u => ['sales', 'design_consultant'].includes(u.role) && u.isActive)
+      .map(u => ({ ...u, fullName: `${u.firstName} ${u.lastName}` }))
   );
 
   const bdcUsers = computed(() =>
-    users.value.filter(u => ['bdc'].includes(u.role) && u.isActive)
+    users.value
+      .filter(u => ['bdc'].includes(u.role) && u.isActive)
+      .map(u => ({ ...u, fullName: `${u.firstName} ${u.lastName}` }))
+  );
+
+  const allUsers = computed(() =>
+    users.value.map(u => ({ ...u, fullName: `${u.firstName} ${u.lastName}` }))
   );
 
   const fetchUsers = async () => {
@@ -41,7 +50,7 @@ export const useUserStore = defineStore('users', () => {
   };
 
   return {
-    users,
+    users: allUsers,
     isLoading,
     salesUsers,
     bdcUsers,
