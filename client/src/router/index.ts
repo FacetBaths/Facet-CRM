@@ -18,6 +18,11 @@ const routes: RouteRecordRaw[] = [
         name: 'dashboard',
       },
       {
+        path: 'projects/pipeline',
+        component: () => import('@/pages/PipelinePage.vue'),
+        name: 'pipeline',
+      },
+      {
         path: 'projects',
         component: () => import('@/pages/ProjectsPage.vue'),
         name: 'projects',
@@ -65,7 +70,7 @@ const routes: RouteRecordRaw[] = [
   },
 ];
 
-export default defineRouter(function () {
+export default defineRouter(function ({ ssrContext }) {
   const Router = createRouter({
     routes,
     history: createWebHistory(import.meta.env.VITE_ROUTER_BASE || '/'),
@@ -73,6 +78,11 @@ export default defineRouter(function () {
 
   Router.beforeEach((to, from, next) => {
     const authStore = useAuthStore();
+    
+    // Initialize auth store from localStorage on first load
+    if (!authStore.user) {
+      authStore.init();
+    }
     
     if (!to.meta.public && !authStore.isAuthenticated) {
       next('/login');

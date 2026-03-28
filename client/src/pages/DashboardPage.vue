@@ -1,6 +1,36 @@
 <template>
   <q-page class="q-pa-md">
     <div class="row q-col-gutter-md">
+      <!-- Pipeline Summary -->
+      <div class="col-12">
+        <div class="text-h6 q-mb-md">Pipeline Summary</div>
+        <div class="row q-col-gutter-md">
+          <div
+            v-for="group in pipelineSummary"
+            :key="group.status"
+            class="col-12 col-sm-6 col-md-4 col-lg-2"
+          >
+            <q-card
+              class="pipeline-summary-card cursor-pointer"
+              :class="`bg-${group.color}`"
+              flat
+              @click="$router.push('/projects/pipeline')"
+            >
+              <q-card-section class="text-white">
+                <div class="text-caption text-weight-medium opacity-80">{{ group.label }}</div>
+                <div class="text-h4 text-weight-bold q-my-sm">{{ group.count }}</div>
+                
+                <div class="text-caption opacity-90">
+                  ${{ formatCurrency(group.revenue) }} Revenue
+                </div>
+                
+                <div class="text-caption opacity-70 q-mt-xs">{{ group.description }}</div>
+              </q-card-section>
+            </q-card>
+          </div>
+        </div>
+      </div>
+
       <!-- Stats Cards -->
       <div class="col-12 col-md-3">
         <q-card class="dashboard-card" flat bordered>
@@ -107,6 +137,59 @@ const stats = ref({
 
 const projects = computed(() => projectStore.projects);
 
+// Pipeline grouping (matches LEAP Stage Groups - updated with all detailed stages)
+const statusToGroup: Record<string, string> = {
+  // Prospect
+  'lead': 'prospect',
+  'appointment': 'prospect',
+  'rehash_multitouch': 'prospect',
+  'contract_sent': 'prospect',
+  // Customer
+  'contract_signed': 'customer',
+  'funding_cleared': 'customer',
+  'deal_scrub_in_progress': 'customer',
+  'change_order_needed': 'customer',
+  'deal_scrub_complete': 'customer',
+  // Production
+  'materials_ordered': 'production',
+  'materials_released': 'production',
+  'materials_received': 'production',
+  // Install
+  'install_contacted': 'install',
+  'install_in_progress': 'install',
+  'install_hung': 'install',
+  'install_complete_service_needed': 'install',
+  'install_complete': 'install',
+  // Completed
+  'funding_received': 'completed',
+  'completed': 'completed',
+  // Legacy mappings for compatibility
+  'qualified': 'prospect',
+  'design_scheduled': 'prospect',
+  'production_scheduled': 'production',
+  'in_production': 'install',
+  'final_walkthrough': 'install',
+};
+
+const pipelineSummary = computed(() => {
+  const groups = [
+    { status: 'prospect', label: 'Prospect', color: 'info', description: 'Lead → Appointment → Rehash' },
+    { status: 'customer', label: 'Customer', color: 'warning', description: 'Contract → Funding → Scrub' },
+    { status: 'production', label: 'Production', color: 'accent', description: 'Materials ordered → released' },
+    { status: 'install', label: 'Install', color: 'secondary', description: 'Contacted → In progress → Complete' },
+    { status: 'completed', label: 'Completed', color: 'positive', description: 'Funding received' },
+  ];
+
+  return groups.map(group => {
+    const groupProjects = projects.value.filter((p: any) => statusToGroup[p.status] === group.status);
+    return {
+      ...group,
+      count: groupProjects.length,
+      revenue: groupProjects.reduce((sum: number, p: any) => sum + (p.contractAmount || 0), 0),
+    };
+  });
+});
+
 const recentProjects = computed(() => {
   return projects.value.slice(0, 5);
 });
@@ -147,5 +230,13 @@ onMounted(async () => {
 }
 .dashboard-card:hover {
   transform: translateY(-2px);
+}
+
+.pipeline-summary-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.pipeline-summary-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 </style>

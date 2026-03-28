@@ -321,25 +321,40 @@
   </q-page>
 
   <!-- Loading State -->
-  <q-page v-else class="flex flex-center page-container">
+  <q-page v-else-if="projectStore.isLoading" class="flex flex-center page-container">
     <q-spinner size="50px" color="primary" />
+    <div class="text-caption q-mt-md">Loading project...</div>
+  </q-page>
+
+  <!-- Error State -->
+  <q-page v-else-if="error" class="flex flex-center page-container">
+    <div class="text-center">
+      <q-icon name="error" size="50px" color="negative" />
+      <div class="text-h6 q-mt-md">Failed to load project</div>
+      <div class="text-caption text-grey-7 q-mb-md">{{ error }}</div>
+      <q-btn color="primary" label="Try Again" @click="retryFetch" />
+    </div>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useProjectStore } from '@/stores/projects';
 import { useUserStore } from '@/stores/users';
+import { useAuthStore } from '@/stores/auth';
+import { socket, connectSocket, joinProjectRoom, leaveProjectRoom } from '@/boot/socket';
 import { useQuasar } from 'quasar';
 
 const $q = useQuasar();
 const route = useRoute();
 const projectStore = useProjectStore();
 const userStore = useUserStore();
+const authStore = useAuthStore();
 
 const loading = ref(false);
 const adding = ref(false);
+const error = ref<string | null>(null);
 
 // Dialog states
 const showAddNote = ref(false);
@@ -365,7 +380,7 @@ const sortedActivities = computed(() => {
 });
 
 const totalPaid = computed(() => 
-  payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
+  payments.value?.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0
 );
 
 const balance = computed(() => 
@@ -373,8 +388,8 @@ const balance = computed(() =>
 );
 
 const paymentProgress = computed(() => {
-  if (!project.value?.contractAmount) return 0;
-  return totalPaid.value / project.value.contractAmount;
+  if (!project.value?.contractAmount || project.value.contractAmount === 0) return 0;
+  return Math.min(totalPaid.value / project.value.contractAmount, 1);
 });
 
 const paymentTypeOptions = [
@@ -455,8 +470,22 @@ const formatDate = (date: string) => {
 
 const refreshActivities = async () => {
   loading.value = true;
-  await projectStore.fetchProject(route.params.id as string);
-  loading.value = false;
+  error.value = null;
+  try {
+    await projectStore.fetchProject(route.params.id as string);
+    if (!projectStore.currentProject) {
+      error.value = 'Project not found';
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to load project';
+  } finally {
+    loading.value = false;
+  }
+};
+
+const retryFetch = async () => {
+  error.value = null;
+  await refreshActivities();
 };
 
 const addNote = async () => {
@@ -569,11 +598,103 @@ const createChangeOrder = async () => {
   }
 };
 
+// Socket event handlers
+const handleActivityUpdate = (activity: any) => {
+  if (project.value?.activities) {
+    // Check if activity already exists (avoid duplicates)
+    const exists = project.value.activities.some((a: any) => a._id === activity._id);
+    if (!exists) {
+      project.value.activities.push(activity);
+      // Show subtle notification for real-time updates
+      $q.notify({
+        type: 'info',
+        message: 'New activity added',
+        position: 'top-right',
+        timeout: 2000,
+        actions: [{ icon: 'close', color: 'white' }],
+      });
+    }
+  }
+};
+
+const handleTaskUpdate = (payload: { action: string; task: any }) => {
+  if (project.value?.tasks) {
+    const index = project.value.tasks.findIndex((t: any) => t._id === payload.task._id);
+    if (index > -1) {
+      project.value.tasks[index] = payload.task;
+    } else if (payload.action === 'created') {
+      project.value.tasks.push(payload.task);
+    }
+  }
+};
+
+const handlePaymentUpdate = (payload: { amount: number; totalPaid: number; percentPaid: number }) => {
+  if (project.value) {
+    // Refresh project data to get accurate state
+    projectStore.fetchProject(route.params.id as string);
+  }
+};
+
+const handleChangeOrderUpdate = (payload: { action: string; changeOrder: any }) => {
+  if (project.value?.changeOrders) {
+    const index = project.value.changeOrders.findIndex((c: any) => c._id === payload.changeOrder._id);
+    if (index > -1) {
+      project.value.changeOrders[index] = payload.changeOrder;
+    } else if (payload.action === 'created') {
+      project.value.changeOrders.push(payload.changeOrder);
+    }
+  }
+};
+
 onMounted(async () => {
-  await Promise.all([
-    projectStore.fetchProject(route.params.id as string),
-    userStore.fetchUsers(),
-  ]);
+  const projectId = route.params.id as string;
+  error.value = null;
+  
+  try {
+    await Promise.all([
+      projectStore.fetchProject(projectId),
+      userStore.fetchUsers(),
+    ]);
+    
+    if (!projectStore.currentProject) {
+      error.value = 'Project not found';
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to load project';
+  }
+  
+  // Connect socket and join project room
+  connectSocket(authStore.token);
+  joinProjectRoom(projectId);
+  
+  // Set up socket listeners for real-time updates
+  socket.on('project:activity', handleActivityUpdate);
+  socket.on('project:task', handleTaskUpdate);
+  socket.on('project:payment', handlePaymentUpdate);
+  socket.on('project:changeOrder', handleChangeOrderUpdate);
+});
+
+onUnmounted(() => {
+  const projectId = route.params.id as string;
+  
+  // Clean up socket listeners
+  socket.off('project:activity', handleActivityUpdate);
+  socket.off('project:task', handleTaskUpdate);
+  socket.off('project:payment', handlePaymentUpdate);
+  socket.off('project:changeOrder', handleChangeOrderUpdate);
+  
+  leaveProjectRoom(projectId);
+});
+
+// Re-join room if project ID changes
+watch(() => route.params.id, (newId, oldId) => {
+  if (newId !== oldId) {
+    if (oldId) leaveProjectRoom(oldId as string);
+    if (newId) {
+      joinProjectRoom(newId as string);
+      projectStore.fetchProject(newId as string);
+    }
+  }
 });
 </script>
 

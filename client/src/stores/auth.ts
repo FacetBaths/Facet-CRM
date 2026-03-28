@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/boot/axios';
+import { connectSocket, disconnectSocket } from '@/boot/socket';
 
 interface User {
   id: string;
@@ -31,6 +32,8 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = authToken;
     localStorage.setItem('token', authToken);
     localStorage.setItem('user', JSON.stringify(userData));
+    // Connect socket after successful auth
+    connectSocket(authToken);
   };
 
   const clearAuth = () => {
@@ -38,6 +41,8 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = '';
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    // Disconnect socket on logout
+    disconnectSocket();
   };
 
   const login = async (email: string, password: string) => {

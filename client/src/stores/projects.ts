@@ -147,6 +147,19 @@ export const useProjectStore = defineStore('projects', () => {
     }
   };
 
+  const calculateCommission = async (projectId: string) => {
+    try {
+      const { data } = await api.post(`/projects/${projectId}/calculate-commission`);
+      if (currentProject.value?._id === projectId) {
+        currentProject.value.commission = data.commission;
+      }
+      return data;
+    } catch (error) {
+      console.error('Failed to calculate commission:', error);
+      throw error;
+    }
+  };
+
   return {
     projects,
     currentProject,
@@ -160,5 +173,6 @@ export const useProjectStore = defineStore('projects', () => {
     addTask,
     updateTaskStatus,
     addPayment,
+    calculateCommission,
   };
 });

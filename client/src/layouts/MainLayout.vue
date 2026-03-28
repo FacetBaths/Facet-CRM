@@ -60,6 +60,7 @@ const authStore = useAuthStore();
 
 const navTabs = [
   { path: '/', label: 'Dashboard', icon: 'dashboard' },
+  { path: '/projects/pipeline', label: 'Pipeline', icon: 'view_kanban' },
   { path: '/projects', label: 'Projects', icon: 'assignment' },
   { path: '/customers', label: 'Customers', icon: 'people' },
   { path: '/subscriptions', label: 'Subscriptions', icon: 'autorenew' },

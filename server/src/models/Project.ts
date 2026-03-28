@@ -305,9 +305,16 @@ const ProjectSchema = new Schema<IProject>(
     status: {
       type: String,
       enum: [
-        'lead', 'qualified', 'design_scheduled', 'contract_sent', 'contract_signed',
-        'rescission_period', 'materials_ordered', 'production_scheduled',
-        'in_production', 'final_walkthrough', 'completed', 'cancelled'
+        // Prospect group
+        'lead', 'appointment', 'rehash_multitouch', 'contract_sent',
+        // Customer group  
+        'contract_signed', 'funding_cleared', 'deal_scrub_in_progress', 'change_order_needed', 'deal_scrub_complete',
+        // Production group
+        'materials_ordered', 'materials_released', 'materials_received',
+        // Install group
+        'install_contacted', 'install_in_progress', 'install_hung', 'install_complete_service_needed', 'install_complete',
+        // Completed
+        'funding_received', 'completed', 'cancelled'
       ],
       default: 'lead',
       index: true,

@@ -77,6 +77,12 @@ io.on('connection', (socket) => {
   
   socket.on('join-project', (projectId: string) => {
     socket.join(`project:${projectId}`);
+    console.log(`Socket ${socket.id} joined project:${projectId}`);
+  });
+  
+  socket.on('leave-project', (projectId: string) => {
+    socket.leave(`project:${projectId}`);
+    console.log(`Socket ${socket.id} left project:${projectId}`);
   });
   
   socket.on('disconnect', () => {

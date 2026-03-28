@@ -17,7 +17,42 @@ export default defineBoot(({ app }) => {
     console.log('Socket disconnected');
   });
 
+  socket.on('connect_error', (err) => {
+    console.log('Socket connection error:', err.message);
+  });
+
   app.config.globalProperties.$socket = socket;
 });
+
+export function connectSocket(token?: string) {
+  if (socket && !socket.connected) {
+    if (token) {
+      socket.io.opts.extraHeaders = {
+        Authorization: `Bearer ${token}`,
+      };
+    }
+    socket.connect();
+  }
+}
+
+export function disconnectSocket() {
+  if (socket && socket.connected) {
+    socket.disconnect();
+  }
+}
+
+export function joinProjectRoom(projectId: string) {
+  if (socket && socket.connected) {
+    socket.emit('join-project', projectId);
+    console.log('Joined project room:', projectId);
+  }
+}
+
+export function leaveProjectRoom(projectId: string) {
+  if (socket && socket.connected) {
+    socket.emit('leave-project', projectId);
+    console.log('Left project room:', projectId);
+  }
+}
 
 export { socket };

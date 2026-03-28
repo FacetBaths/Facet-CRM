@@ -203,12 +203,29 @@ const columns = [
 ];
 
 const statusOptions = [
+  // Prospect
   { label: 'Lead', value: 'lead' },
-  { label: 'Qualified', value: 'qualified' },
-  { label: 'Design Scheduled', value: 'design_scheduled' },
+  { label: 'Appointment', value: 'appointment' },
+  { label: 'Rehash/Multitouch', value: 'rehash_multitouch' },
   { label: 'Contract Sent', value: 'contract_sent' },
+  // Customer
   { label: 'Contract Signed', value: 'contract_signed' },
-  { label: 'Production', value: 'in_production' },
+  { label: 'Initial Funding Cleared', value: 'funding_cleared' },
+  { label: 'Deal Scrub - In Progress', value: 'deal_scrub_in_progress' },
+  { label: 'Change Order Needed', value: 'change_order_needed' },
+  { label: 'Deal Scrub - Complete', value: 'deal_scrub_complete' },
+  // Production
+  { label: 'Materials Ordered', value: 'materials_ordered' },
+  { label: 'Materials Released', value: 'materials_released' },
+  { label: 'Materials Received', value: 'materials_received' },
+  // Install
+  { label: 'Contacted for Install', value: 'install_contacted' },
+  { label: 'Install In Progress', value: 'install_in_progress' },
+  { label: 'Install Hung', value: 'install_hung' },
+  { label: 'Install Complete - Service Needed', value: 'install_complete_service_needed' },
+  { label: 'Install Complete', value: 'install_complete' },
+  // Completed
+  { label: 'Funding Received', value: 'funding_received' },
   { label: 'Completed', value: 'completed' },
 ];
 
@@ -225,14 +242,36 @@ const formatStatus = (status: string) => {
 
 const statusColor = (status: string) => {
   const colors: Record<string, string> = {
-    lead: 'grey',
+    // Prospect
+    lead: 'grey-7',
+    appointment: 'info',
+    rehash_multitouch: 'info',
+    contract_sent: 'warning',
+    // Customer
+    contract_signed: 'positive',
+    funding_cleared: 'warning',
+    deal_scrub_in_progress: 'warning',
+    change_order_needed: 'warning',
+    deal_scrub_complete: 'positive',
+    // Production
+    materials_ordered: 'accent',
+    materials_released: 'accent',
+    materials_received: 'accent',
+    // Install
+    install_contacted: 'secondary',
+    install_in_progress: 'secondary',
+    install_hung: 'secondary',
+    install_complete_service_needed: 'orange',
+    install_complete: 'positive',
+    // Completed
+    funding_received: 'positive',
+    completed: 'positive',
+    // Legacy
     qualified: 'info',
     design_scheduled: 'primary',
-    contract_sent: 'warning',
-    contract_signed: 'positive',
     production_scheduled: 'accent',
     in_production: 'secondary',
-    completed: 'positive',
+    final_walkthrough: 'secondary',
     cancelled: 'negative',
   };
   return colors[status] || 'grey';

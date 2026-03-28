@@ -14,6 +14,7 @@
 - [x] Change order visibility
 - [ ] Service calls separate from projects (schema ready, UI pending)
 - [x] Payment milestone tracking (including payment plans)
+- [x] Real-time Socket.io updates on Project Detail page
 
 ### New Divisions
 - [x] Facet Renovations (bathrooms) - FULL SUPPORT
@@ -239,13 +240,27 @@ io.to(`project:${projectId}`).emit('project:changeOrder', { action: 'created', c
 </q-card>
 ```
 
+### Pipeline Stage Groups (Like LEAP)
+**Prospect** (blue)
+- Lead → Appointment → Rehash/Multitouch → Contract Sent
+
+**Customer** (orange)
+- Contract Signed → Initial Funding Cleared → Deal Scrub In Progress → Change Order Needed → Deal Scrub Complete
+
+**Production** (purple)
+- Materials Ordered → Materials Released → Materials Received
+
+**Install** (green)
+- Contacted for Install → Install In Progress → Install Hung → Install Complete (Service Needed) → Install Complete
+
+**Completed** (green)
+- Funding Received
+
 ### Status Badge Colors
-- Lead: grey
-- Qualified: blue (#2196F3)
-- Design Scheduled: purple (#9945FF)
-- Contract Sent: orange (#FF9800)
-- Contract Signed: green (#21BA45)
-- In Production: green (#14F195) with dark text
+- Prospect stages: blue (#2196F3)
+- Customer stages: orange (#FF9800)
+- Production stages: purple (#9C27B0)
+- Install stages: green (#14F195) with dark text
 - Completed: green (#21BA45)
 - Cancelled: red (#C10015)
 
