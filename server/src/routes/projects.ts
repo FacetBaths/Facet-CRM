@@ -464,7 +464,7 @@ router.put('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
       metadata: { paymentId: req.params.paymentId, originalAmount, newAmount: project.payments[paymentIndex].amount }
     });
     
-    await project.save();
+    await project.save({ validateBeforeSave: false });
     
     // Recalculate totals
     const totalPaid = project.payments.reduce((sum, p) => sum + p.amount, 0);
@@ -518,7 +518,7 @@ router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
       metadata: { paymentId: req.params.paymentId, amount: originalAmount }
     });
     
-    await project.save();
+    await project.save({ validateBeforeSave: false });
     
     // Recalculate totals (excluding voided payments)
     const totalPaid = project.payments
