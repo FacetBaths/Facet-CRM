@@ -1,293 +1,317 @@
 <template>
-  <q-page class="page-container">
-    <div class="q-pa-md">
-      <!-- Header with back button -->
-      <div class="row items-center q-mb-lg">
-        <q-btn flat round icon="arrow_back" color="dark" @click="$router.push('/customers')" class="q-mr-sm" />
-        <div class="text-h5 text-weight-bold text-dark">Customer Profile</div>
-        <q-space />
-        <q-btn color="primary" icon="add" label="New Project" @click="showNewProjectDialog = true" />
-      </div>
+  <q-page class="page-container" v-if="customer">
+    <!-- Header -->
+    <div class="row items-center justify-between q-mb-md">
+      <q-btn flat icon="arrow_back" label="Back" @click="$router.push('/customers')" />
+      <div class="text-h5 text-weight-bold">{{ fullName }}</div>
+      <q-btn color="primary" icon="edit" label="Edit" @click="showEdit = true" />
+    </div>
 
-      <div class="row q-col-gutter-md">
-        <!-- Customer Info Card -->
-        <div class="col-12 col-md-4">
-          <q-card class="glass-card" v-if="customerStore.currentCustomer">
-            <q-card-section>
-              <div class="text-h6 text-weight-bold text-brand-purple">
-                {{ customerStore.currentCustomer.firstName }} {{ customerStore.currentCustomer.lastName }}
-              </div>
-              <div class="text-subtitle2 text-grey-7">
-                Customer since {{ formatDate(customerStore.currentCustomer.createdAt) }}
-              </div>
-            </q-card-section>
+    <div class="row q-col-gutter-md">
+      <!-- Left Column: Customer Info -->
+      <div class="col-12 col-md-4">
+        <!-- Customer Profile Card -->
+        <div class="glass-card q-pa-md q-mb-md">
+          <div class="text-h6 text-weight-bold q-mb-md">Customer Profile</div>
+          
+          <div class="row items-center q-gutter-sm q-mb-sm">
+            <q-icon name="person" size="20px" />
+            <span class="text-weight-medium">{{ fullName }}</span>
+          </div>
+          
+          <div v-if="customer.contacts?.[0]" class="column q-gutter-sm">
+            <div class="row items-center q-gutter-sm">
+              <q-icon name="phone" size="20px" />
+              <a :href="`tel:${customer.contacts[0].phone}`" class="text-primary">
+                {{ customer.contacts[0].phone }}
+              </a>
+            </div>
+            
+            <div class="row items-center q-gutter-sm">
+              <q-icon name="email" size="20px" />
+              <a :href="`mailto:${customer.contacts[0].email}`" class="text-primary">
+                {{ customer.contacts[0].email }}
+              </a>
+            </div>
+            
+            <div v-if="customer.contacts[0].address" class="row items-start q-gutter-sm">
+              <q-icon name="location_on" size="20px" />
+              <span>{{ formatAddress(customer.contacts[0].address) }}</span>
+            </div>
+          </div>
 
-            <q-separator />
+          <q-separator class="q-my-md" />
 
-            <q-card-section>
-              <div class="text-subtitle2 text-weight-bold q-mb-sm">Contact Information</div>
-              
-              <div v-if="primaryContact" class="q-gutter-y-sm">
-                <div class="row items-center" v-if="primaryContact.phone">
-                  <q-icon name="phone" size="sm" class="text-grey-7 q-mr-sm" />
-                  <a :href="`tel:${primaryContact.phone}`" class="text-dark">{{ primaryContact.phone }}</a>
-                </div>
-                <div class="row items-center" v-if="primaryContact.email">
-                  <q-icon name="email" size="sm" class="text-grey-7 q-mr-sm" />
-                  <a :href="`mailto:${primaryContact.email}`" class="text-dark">{{ primaryContact.email }}</a>
-                </div>
-                <div class="row items-start" v-if="primaryContact.address?.street">
-                  <q-icon name="location_on" size="sm" class="text-grey-7 q-mr-sm" />
-                  <div class="text-dark">
-                    {{ primaryContact.address.street }}<br v-if="primaryContact.address.city" />
-                    <span v-if="primaryContact.address.city">
-                      {{ primaryContact.address.city }}, {{ primaryContact.address.state }} {{ primaryContact.address.zip }}
-                    </span>
-                  </div>
-                </div>
-              </div>
+          <div v-if="customer.referralSource" class="row items-center q-gutter-sm">
+            <q-icon name="share" size="20px" />
+            <span class="text-grey-7">Referred by:</span>
+            <span>{{ customer.referralSource }}</span>
+          </div>
 
-              <div v-else class="text-grey-7">No contact information</div>
-            </q-card-section>
-
-            <q-separator />
-
-            <q-card-section>
-              <div class="text-subtitle2 text-weight-bold q-mb-sm">Referral Source</div>
-              <div class="text-dark">{{ customerStore.currentCustomer.referralSource || 'Not specified' }}</div>
-            </q-card-section>
-
-            <q-separator />
-
-            <q-card-section>
-              <div class="text-subtitle2 text-weight-bold q-mb-sm">Notes</div>
-              <q-input
-                v-model="customerNotes"
-                type="textarea"
-                filled
-                dense
-                rows="4"
-                placeholder="Add notes about this customer..."
-              />
-              <q-btn 
-                label="Save Notes" 
-                color="primary" 
-                size="sm" 
-                class="q-mt-sm"
-                :loading="savingNotes"
-                @click="saveNotes"
-              />
-            </q-card-section>
-          </q-card>
-
-          <q-skeleton v-else type="card" height="400px" />
+          <div v-if="customer.notes" class="q-mt-md">
+            <div class="text-caption text-grey-7 q-mb-xs">Notes</div>
+            <div class="text-body2">{{ customer.notes }}</div>
+          </div>
         </div>
 
-        <!-- Projects History -->
-        <div class="col-12 col-md-8">
-          <q-card class="glass-card">
-            <q-card-section>
-              <div class="row items-center justify-between">
-                <div class="text-h6 text-weight-bold text-brand-purple">Projects History</div>
-                <div class="text-subtitle2">
-                  {{ customerStore.customerProjects.length }} project(s)
-                </div>
+        <!-- Customer Stats -->
+        <div class="glass-card q-pa-md q-mb-md">
+          <div class="text-subtitle2 text-grey-7 q-mb-sm">Customer Stats</div>
+          
+          <div class="row justify-between items-center q-mb-sm">
+            <span>Total Projects:</span>
+            <span class="text-h6 text-weight-bold">{{ projects.length }}</span>
+          </div>
+          
+          <div class="row justify-between items-center q-mb-sm">
+            <span>Active Projects:</span>
+            <span class="text-h6 text-weight-bold text-primary">{{ activeProjects.length }}</span>
+          </div>
+          
+          <div class="row justify-between items-center q-mb-sm">
+            <span>Total Revenue:</span>
+            <span class="text-h6 text-weight-bold text-secondary">${{ totalRevenue.toLocaleString() }}</span>
+          </div>
+          
+          <div class="row justify-between items-center">
+            <span>Total Paid:</span>
+            <span class="text-h6 text-weight-bold text-positive">${{ totalPaid.toLocaleString() }}</span>
+          </div>
+
+          <q-separator class="q-my-md" />
+
+          <div class="row justify-between items-center">
+            <span>Outstanding Balance:</span>
+            <span class="text-h6 text-weight-bold" :class="balance > 0 ? 'text-negative' : 'text-positive'">
+              ${{ balance.toLocaleString() }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="glass-card q-pa-md">
+          <div class="text-subtitle2 text-grey-7 q-mb-sm">Actions</div>
+          <div class="column q-gutter-sm">
+            <q-btn color="primary" icon="add" label="New Project" @click="createProject" unelevated />
+            <q-btn color="secondary" icon="note_add" label="Add Note" @click="showAddNote = true" unelevated />
+            <q-btn color="info" icon="email" label="Send Email" @click="sendEmail" unelevated />
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Projects & Activity -->
+      <div class="col-12 col-md-8">
+        <!-- Current/Most Recent Project -->
+        <div v-if="currentProject" class="glass-card q-pa-md q-mb-md">
+          <div class="row items-center justify-between q-mb-md">
+            <div class="text-h6 text-weight-bold">Current Project</div>
+            <q-btn 
+              flat 
+              color="primary" 
+              label="View Details" 
+              @click="$router.push(`/projects/${currentProject._id}`)" 
+            />
+          </div>
+
+          <div class="row items-center justify-between">
+            <div>
+              <div class="text-weight-bold">{{ currentProject.title }}</div>
+              <div class="text-caption text-grey-7">{{ currentProject.projectNumber }}</div>
+            </div>
+            <q-badge :color="statusColor(currentProject.status)" class="q-px-md q-py-sm">
+              {{ formatStatus(currentProject.status) }}
+            </q-badge>
+          </div>
+
+          <div class="row q-col-gutter-md q-mt-md">
+            <div class="col-4">
+              <div class="text-caption text-grey-7">Contract</div>
+              <div class="text-body2 text-weight-bold">${{ currentProject.contractAmount?.toLocaleString() }}</div>
+            </div>
+            <div class="col-4">
+              <div class="text-caption text-grey-7">Paid</div>
+              <div class="text-body2 text-weight-bold text-positive">
+                ${{ getProjectPaid(currentProject).toLocaleString() }}
               </div>
-            </q-card-section>
+            </div>
+            <div class="col-4">
+              <div class="text-caption text-grey-7">Balance</div>
+              <div class="text-body2 text-weight-bold">${{ getProjectBalance(currentProject).toLocaleString() }}</div>
+            </div>
+          </div>
 
-            <q-separator />
+          <q-linear-progress
+            :value="getProjectProgress(currentProject)"
+            size="8px"
+            rounded
+            color="secondary"
+            track-color="grey-4"
+            class="q-mt-md"
+          />
+        </div>
 
-            <q-card-section>
-              <q-list v-if="customerStore.customerProjects.length > 0">
-                <q-item
-                  v-for="project in customerStore.customerProjects"
-                  :key="project._id"
-                  clickable
-                  @click="$router.push(`/projects/${project._id}`)"
-                  class="project-item"
-                >
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">
-                      {{ project.projectNumber }} - {{ project.title }}
-                    </q-item-label>
-                    <q-item-label caption>
-                      <span :class="`text-${getStatusColor(project.status)}`">
-                        {{ formatStatus(project.status) }}
-                      </span>
-                      • {{ formatDate(project.createdAt) }}
-                    </q-item-label>
-                  </q-item-section>
+        <!-- Customer Activity Feed (synced with current project) -->
+        <div class="glass-card q-pa-md q-mb-md">
+          <div class="row items-center justify-between q-mb-md">
+            <div class="text-h6 text-weight-bold">Activity Feed</div>
+            <div v-if="currentProject" class="text-caption text-grey-7">
+              Synced with {{ currentProject.projectNumber }}
+            </div>
+          </div>
 
-                  <q-item-section side>
-                    <div class="text-weight-bold text-brand-purple">
-                      ${{ (project.contractAmount || 0).toLocaleString() }}
-                    </div>
-                    <q-badge :color="getStatusColor(project.status)" class="q-mt-xs">
-                      {{ project.type }}
-                    </q-badge>
-                  </q-item-section>
-                </q-item>
-              </q-list>
+          <div v-if="customerActivities.length === 0" class="text-center text-grey-7 q-pa-md">
+            <q-icon name="chat" size="40px" class="q-mb-sm" />
+            <div>No activity yet</div>
+          </div>
 
-              <div v-else-if="customerStore.projectsLoading" class="text-center q-pa-lg">
-                <q-spinner color="primary" size="40px" />
+          <q-timeline v-else color="primary">
+            <q-timeline-entry
+              v-for="activity in customerActivities"
+              :key="activity._id || activity.timestamp"
+              :title="activityTitle(activity)"
+              :subtitle="formatDate(activity.timestamp)"
+              :color="activityColor(activity.type)"
+              :icon="activityIcon(activity.type)"
+            >
+              <div v-if="activity.content" class="text-body2">{{ activity.content }}</div>
+              <div v-if="activity.userId" class="text-caption text-grey-7 q-mt-xs">
+                by {{ activity.userId.firstName }} {{ activity.userId.lastName }}
               </div>
+            </q-timeline-entry>
+          </q-timeline>
+        </div>
 
-              <div v-else class="text-center q-pa-xl text-grey-7">
-                <q-icon name="folder_open" size="48px" class="q-mb-md" />
-                <div>No projects yet</div>
-                <q-btn color="primary" label="Create First Project" class="q-mt-md" @click="showNewProjectDialog = true" />
-              </div>
-            </q-card-section>
-          </q-card>
+        <!-- All Projects List -->
+        <div class="glass-card q-pa-md">
+          <div class="text-h6 text-weight-bold q-mb-md">All Projects</div>
 
-          <!-- Communication History -->
-          <q-card class="glass-card q-mt-md">
-            <q-card-section>
-              <div class="text-h6 text-weight-bold text-brand-purple">Communication Log</div>
-            </q-card-section>
+          <q-table
+            :rows="projects"
+            :columns="projectColumns"
+            row-key="_id"
+            flat
+            dense
+            :pagination="{ rowsPerPage: 10 }"
+            @row-click="(evt, row) => $router.push(`/projects/${row._id}`)"
+          >
+            <template #body-cell-status="{ row }">
+              <q-td>
+                <q-badge :color="statusColor(row.status)">
+                  {{ formatStatus(row.status) }}
+                </q-badge>
+              </q-td>
+            </template>
 
-            <q-separator />
+            <template #body-cell-amount="{ row }">
+              <q-td class="text-right">
+                ${{ row.contractAmount?.toLocaleString() }}
+              </q-td>
+            </template>
 
-            <q-card-section>
-              <div class="text-center q-pa-lg text-grey-7">
-                <q-icon name="chat" size="48px" class="q-mb-md" />
-                <div>Communication log coming soon</div>
-              </div>
-            </q-card-section>
-          </q-card>
+            <template #body-cell-balance="{ row }">
+              <q-td class="text-right">
+                <span :class="getProjectBalance(row) > 0 ? 'text-negative' : 'text-positive'">
+                  ${{ getProjectBalance(row).toLocaleString() }}
+                </span>
+              </q-td>
+            </template>
+          </q-table>
         </div>
       </div>
     </div>
 
-    <!-- New Project Dialog -->
-    <q-dialog v-model="showNewProjectDialog" persistent maximized>
-      <q-card class="glass-card">
-        <q-card-section class="row items-center justify-between">
-          <div class="text-h6">Create New Project</div>
-          <q-btn icon="close" flat round dense v-close-popup />
+    <!-- Edit Customer Dialog -->
+    <q-dialog v-model="showEdit">
+      <q-card class="glass-card" style="min-width: 500px">
+        <q-card-section>
+          <div class="text-h6">Edit Customer</div>
         </q-card-section>
-
-        <q-separator />
-
-        <q-card-section class="q-pa-md">
-          <q-form @submit="createProject" class="q-gutter-md">
-            <!-- Project Type -->
-            <div class="text-subtitle2 text-weight-bold">Project Type</div>
-            <div class="row q-gutter-sm">
-              <q-radio v-model="newProject.type" val="renovation" label="Renovation" color="primary" />
-              <q-radio v-model="newProject.type" val="service" label="Service" color="primary" />
-              <q-radio v-model="newProject.type" val="warranty" label="Warranty" color="primary" />
-              <q-radio v-model="newProject.type" val="retail" label="Retail" color="primary" />
-            </div>
-
-            <!-- Project Title -->
-            <q-input
-              v-model="newProject.title"
-              label="Project Title"
-              outlined
-              required
-              :rules="[val => !!val || 'Title is required']"
-            />
-
-            <!-- Project Description -->
-            <q-input
-              v-model="newProject.description"
-              label="Description"
-              type="textarea"
-              outlined
-              rows="3"
-            />
-
-            <!-- Project Address -->
-            <div class="text-subtitle2 text-weight-bold q-mt-md">Project Address</div>
-            <q-toggle
-              v-model="useCustomerAddress"
-              label="Use customer's primary address"
-              color="primary"
-              class="q-mb-sm"
-            />
-            
-            <q-input
-              v-model="newProject.address.street"
-              label="Street Address"
-              outlined
-              required
-              :disable="useCustomerAddress"
-            />
-            <div class="row q-col-gutter-sm">
+        <q-card-section>
+          <q-form @submit="saveCustomer">
+            <div class="row q-col-gutter-md">
               <div class="col-6">
-                <q-input
-                  v-model="newProject.address.city"
-                  label="City"
-                  outlined
-                  required
-                  :disable="useCustomerAddress"
-                />
+                <q-input v-model="editForm.firstName" label="First Name" outlined required />
               </div>
-              <div class="col-3">
-                <q-input
-                  v-model="newProject.address.state"
-                  label="State"
-                  outlined
-                  required
-                  maxlength="2"
-                  :disable="useCustomerAddress"
-                />
-              </div>
-              <div class="col-3">
-                <q-input
-                  v-model="newProject.address.zip"
-                  label="ZIP"
-                  outlined
-                  required
-                  :disable="useCustomerAddress"
-                />
+              <div class="col-6">
+                <q-input v-model="editForm.lastName" label="Last Name" outlined required />
               </div>
             </div>
 
-            <!-- Contract Value -->
-            <q-input
-              v-model.number="newProject.contractAmount"
-              label="Contract Amount"
-              type="number"
-              prefix="$"
-              outlined
+            <div class="row q-col-gutter-md q-mt-md">
+              <div class="col-6">
+                <q-input v-model="editForm.phone" label="Phone" outlined type="tel" />
+              </div>
+              <div class="col-6">
+                <q-input v-model="editForm.email" label="Email" outlined type="email" />
+              </div>
+            </div>
+
+            <q-input v-model="editForm.address" label="Address" outlined class="q-mt-md" />
+            
+            <div class="row q-col-gutter-md q-mt-md">
+              <div class="col-6">
+                <q-input v-model="editForm.city" label="City" outlined />
+              </div>
+              <div class="col-3">
+                <q-input v-model="editForm.state" label="State" outlined maxlength="2" />
+              </div>
+              <div class="col-3">
+                <q-input v-model="editForm.zip" label="ZIP" outlined />
+              </div>
+            </div>
+
+            <q-input 
+              v-model="editForm.referralSource" 
+              label="Referral Source" 
+              outlined 
+              class="q-mt-md" 
             />
 
-            <!-- Assigned Sales -->
-            <q-select
-              v-model="newProject.assignedSalesId"
-              :options="userStore.users"
-              option-value="_id"
-              option-label="fullName"
-              label="Assigned Sales"
-              outlined
-              emit-value
-              map-options
+            <q-input 
+              v-model="editForm.notes" 
+              label="Notes" 
+              outlined 
+              type="textarea" 
+              class="q-mt-md" 
             />
 
-            <!-- Source -->
-            <q-input
-              v-model="newProject.source"
-              label="Lead Source"
-              outlined
-              placeholder="e.g., Website, Referral, Walk-in"
-            />
-
-            <div class="row justify-end q-gutter-sm q-mt-lg">
-              <q-btn label="Cancel" flat v-close-popup />
-              <q-btn
-                label="Create Project"
-                type="submit"
-                color="primary"
-                :loading="creatingProject"
-              />
+            <div class="row justify-end q-gutter-sm q-mt-md">
+              <q-btn flat label="Cancel" v-close-popup />
+              <q-btn color="primary" label="Save" type="submit" :loading="saving" />
             </div>
           </q-form>
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Add Note Dialog -->
+    <q-dialog v-model="showAddNote">
+      <q-card class="glass-card" style="min-width: 400px">
+        <q-card-section>
+          <div class="text-h6">Add Customer Note</div>
+          <div v-if="currentProject" class="text-caption text-grey-7">
+            Will be added to {{ currentProject.projectNumber }}
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <q-input 
+            v-model="newNote" 
+            label="Note" 
+            outlined 
+            type="textarea" 
+            required 
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn color="primary" label="Add Note" @click="addNote" :loading="adding" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+  </q-page>
+
+  <q-page v-else class="flex flex-center">
+    <q-spinner size="50px" color="primary" />
   </q-page>
 </template>
 
@@ -296,203 +320,387 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useCustomerStore } from '@/stores/customers';
-import { useUserStore } from '@/stores/users';
-import { api } from '@/boot/axios';
+import { useProjectStore } from '@/stores/projects';
+import { socket, connectSocket, joinProjectRoom, leaveProjectRoom } from '@/boot/socket';
+import { useAuthStore } from '@/stores/auth';
 
 const $q = useQuasar();
 const route = useRoute();
 const router = useRouter();
 const customerStore = useCustomerStore();
-const userStore = useUserStore();
+const projectStore = useProjectStore();
+const authStore = useAuthStore();
 
-const customerId = computed(() => route.params.id as string);
-const customerNotes = ref('');
-const savingNotes = ref(false);
-const showNewProjectDialog = ref(false);
-const creatingProject = ref(false);
-const useCustomerAddress = ref(true);
+const customer = ref<any>(null);
+const projects = ref<any[]>([]);
+const showEdit = ref(false);
+const showAddNote = ref(false);
+const newNote = ref('');
+const saving = ref(false);
+const adding = ref(false);
 
-const newProject = ref({
-  customerId: '',
-  type: 'renovation',
-  title: '',
-  description: '',
-  address: {
-    street: '',
-    city: '',
-    state: 'IL',
-    zip: '',
-  },
-  contractAmount: 17500,
-  assignedSalesId: null as string | null,
-  source: '',
+const editForm = ref({
+  firstName: '',
+  lastName: '',
+  phone: '',
+  email: '',
+  address: '',
+  city: '',
+  state: '',
+  zip: '',
+  referralSource: '',
+  notes: ''
 });
 
-const primaryContact = computed(() => {
-  if (!customerStore.currentCustomer?.contacts?.length) return null;
-  return customerStore.currentCustomer.contacts[0];
+const fullName = computed(() => {
+  if (!customer.value) return '';
+  return `${customer.value.firstName} ${customer.value.lastName}`;
 });
 
-// Auto-fill address when toggled
-watch(useCustomerAddress, (val) => {
-  if (val && primaryContact.value?.address) {
-    newProject.value.address = { ...primaryContact.value.address };
-  }
+const activeProjects = computed(() => {
+  return projects.value.filter(p => !['completed', 'cancelled'].includes(p.status));
 });
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
+const totalRevenue = computed(() => {
+  return projects.value.reduce((sum, p) => sum + (p.contractAmount || 0), 0);
+});
 
-const formatStatus = (status: string) => {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-};
+const totalPaid = computed(() => {
+  return projects.value.reduce((sum, p) => {
+    return sum + (p.payments?.reduce((pSum: number, pay: any) => pSum + (pay.amount || 0), 0) || 0);
+  }, 0);
+});
 
-const getStatusColor = (status: string) => {
+const balance = computed(() => totalRevenue.value - totalPaid.value);
+
+// Current or most recent project (for activity sync)
+const currentProject = computed(() => {
+  if (projects.value.length === 0) return null;
+  // Sort by updatedAt descending
+  const sorted = [...projects.value].sort((a, b) => 
+    new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
+  );
+  return sorted[0];
+});
+
+// Activities from current project (customer-level view)
+const customerActivities = computed(() => {
+  if (!currentProject.value?.activities) return [];
+  // Sort by timestamp descending
+  return [...currentProject.value.activities].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+});
+
+const projectColumns = [
+  { name: 'projectNumber', label: 'Project #', field: 'projectNumber', align: 'left', sortable: true },
+  { name: 'title', label: 'Title', field: 'title', align: 'left', sortable: true },
+  { name: 'status', label: 'Status', field: 'status', align: 'center' },
+  { name: 'amount', label: 'Contract', field: 'contractAmount', align: 'right', sortable: true },
+  { name: 'balance', label: 'Balance', field: (row: any) => getProjectBalance(row), align: 'right' },
+  { name: 'createdAt', label: 'Created', field: 'createdAt', align: 'center', sortable: true, 
+    format: (val: string) => new Date(val).toLocaleDateString() },
+];
+
+function getProjectPaid(project: any) {
+  return project.payments?.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0;
+}
+
+function getProjectBalance(project: any) {
+  return (project.contractAmount || 0) - getProjectPaid(project);
+}
+
+function getProjectProgress(project: any) {
+  const amount = project.contractAmount || 0;
+  if (amount === 0) return 0;
+  return getProjectPaid(project) / amount;
+}
+
+function formatAddress(address: any) {
+  if (!address) return '';
+  const parts = [address.street, address.city, address.state, address.zip].filter(Boolean);
+  return parts.join(', ');
+}
+
+function statusColor(status: string) {
   const colors: Record<string, string> = {
-    lead: 'grey',
-    qualified: 'blue',
-    design_scheduled: 'purple',
-    contract_sent: 'orange',
-    contract_signed: 'positive',
-    production_scheduled: 'accent',
-    in_production: 'secondary',
-    completed: 'positive',
+    lead: 'blue',
+    appointment: 'blue',
+    rehash: 'blue',
+    multitouch: 'blue',
+    contract_sent: 'blue',
+    contract_signed: 'orange',
+    initial_funding_cleared: 'orange',
+    deal_scrub_in_progress: 'orange',
+    change_order_needed: 'orange',
+    deal_scrub_complete: 'orange',
+    materials_ordered: 'purple',
+    materials_released: 'purple',
+    materials_received: 'purple',
+    contacted_for_install: 'green',
+    install_in_progress: 'green',
+    install_hung: 'green',
+    install_complete_service_needed: 'green',
+    install_complete: 'green',
+    funding_received: 'positive',
     cancelled: 'negative',
   };
   return colors[status] || 'grey';
-};
+}
 
-const saveNotes = async () => {
-  if (!customerStore.currentCustomer) return;
-  
-  savingNotes.value = true;
-  try {
-    await customerStore.updateCustomer(customerId.value, {
-      ...customerStore.currentCustomer,
-      notes: customerNotes.value,
-    });
-    $q.notify({ type: 'positive', message: 'Notes saved' });
-  } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to save notes' });
-  } finally {
-    savingNotes.value = false;
-  }
-};
+function formatStatus(status: string) {
+  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
 
-const createProject = async () => {
-  creatingProject.value = true;
+function formatDate(timestamp: string) {
+  return new Date(timestamp).toLocaleString();
+}
+
+function activityTitle(activity: any) {
+  const titles: Record<string, string> = {
+    note: 'Note Added',
+    status_change: 'Status Changed',
+    task_complete: 'Task Completed',
+    payment: 'Payment Recorded',
+    call: 'Call Logged',
+    change_order: 'Change Order',
+  };
+  return titles[activity.type] || activity.type;
+}
+
+function activityColor(type: string) {
+  const colors: Record<string, string> = {
+    note: 'purple',
+    status_change: 'green',
+    task_complete: 'cyan',
+    payment: 'green',
+    call: 'amber',
+    change_order: 'orange',
+  };
+  return colors[type] || 'primary';
+}
+
+function activityIcon(type: string) {
+  const icons: Record<string, string> = {
+    note: 'note',
+    status_change: 'update',
+    task_complete: 'check_circle',
+    payment: 'payment',
+    call: 'phone',
+    change_order: 'edit',
+  };
+  return icons[type] || 'circle';
+}
+
+async function fetchCustomerData() {
   try {
-    const contractAmount = newProject.value.contractAmount || 17500;
+    const customerId = route.params.id as string;
     
-    const projectData = {
-      ...newProject.value,
-      customerId: customerId.value,
-      lineItems: [],
-      tasks: [],
-      activities: [],
-      changeOrders: [],
-      expenses: [],
-      payments: [],
-      status: 'lead',
-      paymentTerms: {
-        type: 'standard',
-        total: contractAmount,
-        milestones: generateMilestones(contractAmount),
-      },
+    // Fetch customer with populated projects
+    const response = await fetch(`/api/customers/${customerId}`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to fetch customer');
+    customer.value = await response.json();
+    
+    // Fetch all projects for this customer
+    const projectsResponse = await fetch(`/api/projects?customerId=${customerId}`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    });
+    
+    if (projectsResponse.ok) {
+      projects.value = await projectsResponse.json();
+    }
+    
+    // Populate edit form
+    const contact = customer.value.contacts?.[0] || {};
+    editForm.value = {
+      firstName: customer.value.firstName || '',
+      lastName: customer.value.lastName || '',
+      phone: contact.phone || '',
+      email: contact.email || '',
+      address: contact.address?.street || '',
+      city: contact.address?.city || '',
+      state: contact.address?.state || '',
+      zip: contact.address?.zip || '',
+      referralSource: customer.value.referralSource || '',
+      notes: customer.value.notes || ''
     };
-
-    const { data } = await api.post('/projects', projectData);
     
-    $q.notify({ 
-      type: 'positive', 
-      message: `Project ${data.projectNumber} created successfully` 
+    // Join socket room for current project if exists
+    if (currentProject.value) {
+      joinProjectRoom(currentProject.value._id);
+    }
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to load customer data' });
+    console.error(error);
+  }
+}
+
+async function saveCustomer() {
+  saving.value = true;
+  try {
+    const updateData = {
+      firstName: editForm.value.firstName,
+      lastName: editForm.value.lastName,
+      referralSource: editForm.value.referralSource,
+      notes: editForm.value.notes,
+      contacts: [{
+        type: 'primary',
+        name: `${editForm.value.firstName} ${editForm.value.lastName}`,
+        phone: editForm.value.phone,
+        email: editForm.value.email,
+        address: {
+          street: editForm.value.address,
+          city: editForm.value.city,
+          state: editForm.value.state,
+          zip: editForm.value.zip
+        }
+      }]
+    };
+    
+    const response = await fetch(`/api/customers/${customer.value._id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authStore.token}` 
+      },
+      body: JSON.stringify(updateData)
     });
     
-    showNewProjectDialog.value = false;
+    if (!response.ok) throw new Error('Failed to update customer');
     
-    // Refresh projects list
-    await customerStore.fetchCustomerProjects(customerId.value);
+    // Update local state
+    const updated = await response.json();
+    customer.value = updated;
     
-    // Navigate to the new project
-    router.push(`/projects/${data._id}`);
+    // CRITICAL: Update customer data in all projects
+    await syncCustomerToProjects(updated);
+    
+    $q.notify({ type: 'positive', message: 'Customer updated successfully' });
+    showEdit.value = false;
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to create project' });
+    $q.notify({ type: 'negative', message: 'Failed to update customer' });
+    console.error(error);
   } finally {
-    creatingProject.value = false;
+    saving.value = false;
   }
-};
+}
 
-const generateMilestones = (total: number) => {
-  return [
-    { percent: 25, label: 'Design Deposit', required: true, completed: false },
-    { percent: 50, label: 'Materials Release', required: true, completed: false },
-    { percent: 75, label: 'Production Start', required: true, completed: false },
-    { percent: 100, label: 'Final Payment', required: true, completed: false },
-  ];
-};
+// Sync customer changes to all projects
+async function syncCustomerToProjects(updatedCustomer: any) {
+  // Update the customerId reference in each project
+  for (const project of projects.value) {
+    // The project.customerId should now be the updated customer object
+    project.customerId = updatedCustomer;
+  }
+  
+  // Emit event for real-time sync across sessions
+  if (socket.connected) {
+    projects.value.forEach(project => {
+      socket.emit('customer:updated', { 
+        projectId: project._id, 
+        customer: updatedCustomer 
+      });
+    });
+  }
+}
 
-// Initialize
-onMounted(async () => {
-  if (customerId.value) {
-    await customerStore.fetchCustomer(customerId.value);
-    await customerStore.fetchCustomerProjects(customerId.value);
-    await userStore.fetchUsers();
+async function addNote() {
+  if (!newNote.value.trim() || !currentProject.value) return;
+  
+  adding.value = true;
+  try {
+    const response = await fetch(`/api/projects/${currentProject.value._id}/activities`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authStore.token}` 
+      },
+      body: JSON.stringify({
+        type: 'note',
+        content: newNote.value.trim(),
+        metadata: { source: 'customer_detail_page' }
+      })
+    });
     
-    if (customerStore.currentCustomer?.notes) {
-      customerNotes.value = customerStore.currentCustomer.notes;
+    if (!response.ok) throw new Error('Failed to add note');
+    
+    const activity = await response.json();
+    
+    // Add to local activity feed
+    if (!currentProject.value.activities) {
+      currentProject.value.activities = [];
     }
+    currentProject.value.activities.push(activity);
+    
+    $q.notify({ type: 'positive', message: 'Note added to project' });
+    newNote.value = '';
+    showAddNote.value = false;
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to add note' });
+    console.error(error);
+  } finally {
+    adding.value = false;
+  }
+}
 
-    // Pre-fill with customer address if available
-    if (primaryContact.value?.address) {
-      newProject.value.address = { ...primaryContact.value.address };
+function createProject() {
+  router.push({
+    path: '/projects',
+    query: { newCustomer: customer.value._id }
+  });
+}
+
+function sendEmail() {
+  const email = customer.value?.contacts?.[0]?.email;
+  if (email) {
+    window.location.href = `mailto:${email}`;
+  } else {
+    $q.notify({ type: 'warning', message: 'No email on file' });
+  }
+}
+
+// Socket handlers for real-time updates
+const handleActivityUpdate = (activity: any) => {
+  if (currentProject.value && currentProject.value._id === activity.projectId) {
+    const exists = currentProject.value.activities?.some((a: any) => a._id === activity._id);
+    if (!exists && currentProject.value.activities) {
+      currentProject.value.activities.push(activity);
+      $q.notify({ type: 'info', message: 'New activity on current project', position: 'top-right' });
     }
   }
+};
+
+const handleCustomerUpdate = (payload: { projectId: string; customer: any }) => {
+  // Update customer in any project that references them
+  projects.value.forEach(project => {
+    if (project.customerId?._id === payload.customer._id) {
+      project.customerId = payload.customer;
+    }
+  });
+  
+  // Update current customer view if it's the same customer
+  if (customer.value?._id === payload.customer._id) {
+    customer.value = { ...customer.value, ...payload.customer };
+  }
+};
+
+onMounted(() => {
+  connectSocket(authStore.token || undefined);
+  fetchCustomerData();
+  
+  // Set up socket listeners
+  socket.on('project:activity', handleActivityUpdate);
+  socket.on('customer:updated', handleCustomerUpdate);
 });
+
+watch(() => route.params.id, fetchCustomerData);
 </script>
 
 <style scoped>
 .page-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #9945ff, #ffffff, #14f195);
-  background-size: 400% 400%;
-  animation: gradientAnimation 15s ease infinite;
-}
-
-@keyframes gradientAnimation {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 16px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.project-item {
-  border-radius: 8px;
-  margin: 4px 0;
-  transition: all 0.2s ease;
-}
-
-.project-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-a {
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
+  padding: 20px;
 }
 </style>

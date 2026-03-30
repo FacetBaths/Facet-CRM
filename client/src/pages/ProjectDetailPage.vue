@@ -17,9 +17,13 @@
           <div class="text-h6 text-weight-bold q-mb-sm">{{ project.title }}</div>
           <div class="row items-center q-gutter-sm q-mb-sm">
             <q-icon name="person" size="20px" />
-            <span class="text-weight-medium">
+            <a 
+              href="#" 
+              class="text-weight-medium text-primary"
+              @click.prevent="$router.push(`/customers/${project.customerId?._id}`)"
+            >
               {{ project.customerId?.firstName }} {{ project.customerId?.lastName }}
-            </span>
+            </a>
           </div>
           
           <div class="row items-center q-gutter-sm q-mb-sm">
@@ -647,6 +651,19 @@ const handleChangeOrderUpdate = (payload: { action: string; changeOrder: any }) 
   }
 };
 
+const handleCustomerUpdate = (payload: { projectId: string; customer: any }) => {
+  // Update customer data in the current project
+  if (project.value && project.value._id === payload.projectId) {
+    project.value.customerId = payload.customer;
+    $q.notify({
+      type: 'info',
+      message: 'Customer information updated',
+      position: 'top-right',
+      timeout: 2000
+    });
+  }
+};
+
 onMounted(async () => {
   const projectId = route.params.id as string;
   error.value = null;
@@ -673,6 +690,7 @@ onMounted(async () => {
   socket.on('project:task', handleTaskUpdate);
   socket.on('project:payment', handlePaymentUpdate);
   socket.on('project:changeOrder', handleChangeOrderUpdate);
+  socket.on('customer:updated', handleCustomerUpdate);
 });
 
 onUnmounted(() => {
@@ -683,6 +701,7 @@ onUnmounted(() => {
   socket.off('project:task', handleTaskUpdate);
   socket.off('project:payment', handlePaymentUpdate);
   socket.off('project:changeOrder', handleChangeOrderUpdate);
+  socket.off('customer:updated', handleCustomerUpdate);
   
   leaveProjectRoom(projectId);
 });

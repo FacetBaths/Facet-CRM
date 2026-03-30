@@ -193,6 +193,20 @@ router.put('/:id', async (req: AuthRequest, res) => {
       res.status(404).json({ error: 'Customer not found' });
       return;
     }
+    
+    // Broadcast customer update to all connected clients
+    const io = (req as any).io;
+    if (io) {
+      // Get all projects for this customer to notify their rooms
+      const projects = await Project.find({ customerId: customer._id }).select('_id');
+      projects.forEach(project => {
+        io.to(`project:${project._id}`).emit('customer:updated', {
+          projectId: project._id,
+          customer: customer.toObject(),
+        });
+      });
+    }
+    
     res.json(customer);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update customer' });
