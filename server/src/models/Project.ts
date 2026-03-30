@@ -23,7 +23,7 @@ export interface IProjectTask {
 
 export interface IProjectActivity {
   _id?: Types.ObjectId;
-  type: 'note' | 'status_change' | 'task_complete' | 'payment' | 'file_upload' | 'call';
+  type: 'note' | 'status_change' | 'task_complete' | 'payment' | 'payment_correction' | 'payment_voided' | 'file_upload' | 'call';
   userId?: Types.ObjectId;
   timestamp: Date;
   content: string;
@@ -209,7 +209,7 @@ const ProjectTaskSchema = new Schema<IProjectTask>(
 
 const ProjectActivitySchema = new Schema<IProjectActivity>(
   {
-    type: { type: String, enum: ['note', 'status_change', 'task_complete', 'payment', 'file_upload', 'call'], required: true },
+    type: { type: String, enum: ['note', 'status_change', 'task_complete', 'payment', 'payment_correction', 'payment_voided', 'file_upload', 'call'], required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
     timestamp: { type: Date, default: Date.now },
     content: { type: String, required: true },
