@@ -11,9 +11,11 @@
       <div class="text-h5 text-weight-bold">{{ project.projectNumber }}</div>
       <q-badge
         :color="statusColor(project.status)"
-        class="q-px-md q-py-sm text-weight-bold"
+        class="q-px-md q-py-sm text-weight-bold cursor-pointer"
+        @click="showStatusChange = true"
       >
         {{ formatStatus(project.status) }}
+        <q-tooltip>Click to change status</q-tooltip>
       </q-badge>
     </div>
 
@@ -678,6 +680,45 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Change Status Dialog -->
+    <q-dialog v-model="showStatusChange" persistent>
+      <q-card style="min-width: 400px" class="glass-card">
+        <q-card-section>
+          <div class="text-h6">Change Project Status</div>
+        </q-card-section>
+
+        <q-card-section class="q-gutter-md">
+          <q-select
+            v-model="newStatus"
+            :options="statusOptions"
+            label="New Status"
+            outlined
+            emit-value
+            map-options
+            required
+          />
+          
+          <q-input
+            v-model="statusChangeReason"
+            label="Reason for change (optional)"
+            type="textarea"
+            outlined
+            autogrow
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn
+            color="primary"
+            label="Update Status"
+            @click="updateStatus"
+            :loading="updatingStatus"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 
   <!-- Loading State -->
@@ -723,6 +764,7 @@ const authStore = useAuthStore();
 
 const loading = ref(false);
 const adding = ref(false);
+const updatingStatus = ref(false);
 const error = ref<string | null>(null);
 
 // Dialog states
@@ -732,6 +774,7 @@ const showAddPayment = ref(false);
 const showChangeOrder = ref(false);
 const showEditPayment = ref(false);
 const showVoidPayment = ref(false);
+const showStatusChange = ref(false);
 
 // Form data
 const newNote = ref("");
@@ -743,6 +786,10 @@ const newTask = ref({
 });
 const newPayment = ref({ amount: 0, type: "", method: "", notes: "" });
 const newChangeOrder = ref({ description: "", reason: "", amount: 0 });
+
+// Status change
+const newStatus = ref("");
+const statusChangeReason = ref("");
 
 // Payment edit/void
 const selectedPayment = ref<any>(null);
@@ -1083,6 +1130,66 @@ const createChangeOrder = async () => {
     $q.notify({ type: "negative", message: "Failed to create change order" });
   } finally {
     adding.value = false;
+  }
+};
+
+// Status change
+const statusOptions = [
+  // Prospect
+  { label: 'Lead', value: 'lead' },
+  { label: 'Appointment', value: 'appointment' },
+  { label: 'Rehash/Multitouch', value: 'rehash_multitouch' },
+  { label: 'Contract Sent', value: 'contract_sent' },
+  // Customer
+  { label: 'Contract Signed', value: 'contract_signed' },
+  { label: 'Initial Funding Cleared', value: 'funding_cleared' },
+  { label: 'Deal Scrub - In Progress', value: 'deal_scrub_in_progress' },
+  { label: 'Change Order Needed', value: 'change_order_needed' },
+  { label: 'Deal Scrub - Complete', value: 'deal_scrub_complete' },
+  // Production
+  { label: 'Materials Ordered', value: 'materials_ordered' },
+  { label: 'Materials Released', value: 'materials_released' },
+  { label: 'Materials Received', value: 'materials_received' },
+  // Install
+  { label: 'Contacted for Install', value: 'install_contacted' },
+  { label: 'Install In Progress', value: 'install_in_progress' },
+  { label: 'Install Hung', value: 'install_hung' },
+  { label: 'Install Complete - Service Needed', value: 'install_complete_service_needed' },
+  { label: 'Install Complete', value: 'install_complete' },
+  // Completed
+  { label: 'Funding Received', value: 'funding_received' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Cancelled', value: 'cancelled' },
+];
+
+const updateStatus = async () => {
+  if (!newStatus.value || newStatus.value === project.value?.status) {
+    showStatusChange.value = false;
+    return;
+  }
+
+  updatingStatus.value = true;
+  try {
+    await projectStore.updateProject(route.params.id as string, {
+      status: newStatus.value,
+    });
+    
+    // Add activity note if reason provided
+    if (statusChangeReason.value.trim()) {
+      await projectStore.addActivity(route.params.id as string, {
+        type: 'note',
+        content: `Status change reason: ${statusChangeReason.value}`,
+      });
+    }
+    
+    $q.notify({ type: 'positive', message: 'Status updated' });
+    newStatus.value = '';
+    statusChangeReason.value = '';
+    showStatusChange.value = false;
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to update status' });
+  } finally {
+    updatingStatus.value = false;
   }
 };
 
