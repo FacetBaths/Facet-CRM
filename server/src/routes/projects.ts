@@ -433,30 +433,33 @@ router.put('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
       return;
     }
     
-    const payment = project.payments.id(req.params.paymentId);
-    if (!payment) {
+    // Find payment by id using findIndex instead of .id()
+    const paymentIndex = project.payments.findIndex((p: any) => p._id.toString() === req.params.paymentId);
+    if (paymentIndex === -1) {
       res.status(404).json({ error: 'Payment not found' });
       return;
     }
+    
+    const payment = project.payments[paymentIndex];
     
     // Store original values for audit
     const originalAmount = payment.amount;
     
     // Update payment
-    if (amount !== undefined) payment.amount = amount;
-    if (type) payment.type = type;
-    if (method) payment.method = method;
-    if (notes !== undefined) payment.notes = notes;
-    payment.updatedAt = new Date();
-    payment.updatedBy = req.user?._id;
+    if (amount !== undefined) project.payments[paymentIndex].amount = amount;
+    if (type) project.payments[paymentIndex].type = type;
+    if (method) project.payments[paymentIndex].method = method;
+    if (notes !== undefined) project.payments[paymentIndex].notes = notes;
+    project.payments[paymentIndex].updatedAt = new Date();
+    project.payments[paymentIndex].updatedBy = req.user?._id;
     
     // Add correction activity
     project.activities.push({
       type: 'payment_correction',
-      content: `Payment corrected: $${originalAmount.toLocaleString()} → $${payment.amount.toLocaleString()}${correctionReason ? ` (${correctionReason})` : ''}`,
+      content: `Payment corrected: $${originalAmount.toLocaleString()} → $${project.payments[paymentIndex].amount.toLocaleString()}${correctionReason ? ` (${correctionReason})` : ''}`,
       userId: req.user?._id,
       timestamp: new Date(),
-      metadata: { paymentId: req.params.paymentId, originalAmount, newAmount: payment.amount }
+      metadata: { paymentId: req.params.paymentId, originalAmount, newAmount: project.payments[paymentIndex].amount }
     });
     
     await project.save();
@@ -466,9 +469,9 @@ router.put('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     const contractAmount = project.paymentTerms?.total || project.contractAmount || 1;
     const percentPaid = contractAmount > 0 ? (totalPaid / contractAmount) * 100 : 0;
     
-    io.to(`project:${req.params.id}`).emit('project:payment', { amount: payment.amount, totalPaid, percentPaid });
+    io.to(`project:${req.params.id}`).emit('project:payment', { amount: project.payments[paymentIndex].amount, totalPaid, percentPaid });
     
-    res.json(payment.toObject());
+    res.json(project.payments[paymentIndex].toObject());
   } catch (error) {
     res.status(500).json({ error: 'Failed to update payment' });
   }
@@ -485,18 +488,21 @@ router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
       return;
     }
     
-    const payment = project.payments.id(req.params.paymentId);
-    if (!payment) {
+    // Find payment by id using find instead of .id()
+    const paymentIndex = project.payments.findIndex((p: any) => p._id.toString() === req.params.paymentId);
+    if (paymentIndex === -1) {
       res.status(404).json({ error: 'Payment not found' });
       return;
     }
     
+    const payment = project.payments[paymentIndex];
+    
     // Instead of deleting, mark as voided
     const originalAmount = payment.amount;
-    payment.voided = true;
-    payment.voidedAt = new Date();
-    payment.voidedBy = req.user?._id;
-    payment.voidReason = voidReason || 'No reason provided';
+    project.payments[paymentIndex].voided = true;
+    project.payments[paymentIndex].voidedAt = new Date();
+    project.payments[paymentIndex].voidedBy = req.user?._id;
+    project.payments[paymentIndex].voidReason = voidReason || 'No reason provided';
     
     // Add void activity
     project.activities.push({
@@ -518,7 +524,7 @@ router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     
     io.to(`project:${req.params.id}`).emit('project:payment', { amount: 0, totalPaid, percentPaid, voided: true });
     
-    res.json({ message: 'Payment voided', payment: payment.toObject() });
+    res.json({ message: 'Payment voided', payment: project.payments[paymentIndex].toObject() });
   } catch (error) {
     res.status(500).json({ error: 'Failed to void payment' });
   }
