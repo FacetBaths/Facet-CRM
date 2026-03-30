@@ -473,7 +473,8 @@ router.put('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     
     res.json(project.payments[paymentIndex].toObject());
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update payment' });
+    console.error('Edit payment error:', error);
+    res.status(500).json({ error: 'Failed to update payment', details: (error as Error).message });
   }
 });
 
@@ -526,7 +527,8 @@ router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     
     res.json({ message: 'Payment voided', payment: project.payments[paymentIndex].toObject() });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to void payment' });
+    console.error('Void payment error:', error);
+    res.status(500).json({ error: 'Failed to void payment', details: (error as Error).message });
   }
 });
 
