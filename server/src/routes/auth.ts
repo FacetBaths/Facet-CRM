@@ -29,7 +29,7 @@ router.post(
         return;
       }
 
-      if (!user.isActive) {
+      if (user.status !== 'active') {
         res.status(401).json({ error: 'Account disabled' });
         return;
       }
@@ -45,11 +45,11 @@ router.post(
       res.json({
         token,
         user: {
-          id: user._id,
+          _id: user._id,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          role: user.role,
+          roles: user.roles,
         },
       });
     } catch (error) {
@@ -67,7 +67,7 @@ router.post(
     body('password').isLength({ min: 8 }),
     body('firstName').trim().notEmpty(),
     body('lastName').trim().notEmpty(),
-    body('role').isIn(['admin', 'bdc', 'sales', 'design_consultant', 'production', 'contractor']),
+    body('roles').isArray().notEmpty(),
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
@@ -77,7 +77,7 @@ router.post(
         return;
       }
 
-      const { email, password, firstName, lastName, role, phone } = req.body;
+      const { email, password, firstName, lastName, roles, phone } = req.body;
 
       const existingUser = await User.findOne({ email: email.toLowerCase() });
       if (existingUser) {
@@ -92,9 +92,9 @@ router.post(
         passwordHash,
         firstName,
         lastName,
-        role,
+        roles,
         phone,
-        isActive: true,
+        status: 'active',
       });
 
       await user.save();
@@ -104,11 +104,11 @@ router.post(
       res.status(201).json({
         token,
         user: {
-          id: user._id,
+          _id: user._id,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          role: user.role,
+          roles: user.roles,
         },
       });
     } catch (error) {

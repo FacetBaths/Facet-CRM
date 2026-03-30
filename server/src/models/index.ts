@@ -4,3 +4,6 @@ export * from './Vendor';
 export * from './Product';
 export * from './Project';
 export * from './Subscription';
+export * from './Market';
+export * from './Team';
+export * from './CompanySettings';

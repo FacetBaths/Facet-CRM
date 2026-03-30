@@ -3,12 +3,36 @@ import { ref, computed } from 'vue';
 import { api } from '@/boot/axios';
 import { connectSocket, disconnectSocket } from '@/boot/socket';
 
+export type UserRole = 'admin' | 'bdc' | 'sales' | 'warehouse' | 'production' | 'contractor' | 'manager' | 'installer';
+
 interface User {
-  id: string;
+  _id: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: string;
+  roles: UserRole[];
+  avatar?: string;
+  phone?: string;
+  phoneExtension?: string;
+  bio?: string;
+  employeeId?: string;
+  employmentType?: string;
+  department?: string;
+  marketId?: string;
+  teamIds?: string[];
+  preferences?: {
+    theme?: 'light' | 'dark' | 'auto';
+    timezone?: string;
+    language?: string;
+    dateFormat?: string;
+    timeFormat?: '12h' | '24h';
+    notifications?: {
+      email?: boolean;
+      sms?: boolean;
+      push?: boolean;
+      desktop?: boolean;
+    };
+  };
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -26,6 +50,17 @@ export const useAuthStore = defineStore('auth', () => {
       ? `${user.value.firstName[0]}${user.value.lastName[0]}`.toUpperCase()
       : ''
   );
+
+  // Check if user has a specific role
+  const hasRole = (role: UserRole) => {
+    return user.value?.roles?.includes(role) || false;
+  };
+
+  // Check if user has any of the given roles
+  const hasAnyRole = (roles: UserRole[]) => {
+    if (!user.value) return false;
+    return roles.some(role => user.value!.roles.includes(role));
+  };
 
   const setAuth = (userData: User, authToken: string) => {
     user.value = userData;
@@ -67,12 +102,55 @@ export const useAuthStore = defineStore('auth', () => {
 
   const init = () => {
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const storedToken = localStorage.getItem('token');
+    if (storedUser && storedToken) {
       try {
         user.value = JSON.parse(storedUser);
+        token.value = storedToken;
+        // Reconnect socket on page reload if we have a token
+        connectSocket(storedToken);
       } catch {
         clearAuth();
       }
+    }
+  };
+
+  // Update profile
+  const updateProfile = async (profileData: any) => {
+    if (!user.value) throw new Error('Not authenticated');
+    
+    const { data } = await api.put(`/users/${user.value._id}`, profileData);
+    
+    // Update local user data
+    user.value = { ...user.value, ...data };
+    localStorage.setItem('user', JSON.stringify(user.value));
+    
+    return data;
+  };
+
+  // Update preferences
+  const updatePreferences = async (prefs: any) => {
+    if (!user.value) throw new Error('Not authenticated');
+    
+    const { data } = await api.put('/users/me/preferences', prefs);
+    
+    // Update local user data
+    user.value = { ...user.value, preferences: data };
+    localStorage.setItem('user', JSON.stringify(user.value));
+    
+    return data;
+  };
+
+  // Refresh user data from server
+  const refreshUser = async () => {
+    if (!user.value) return;
+    
+    try {
+      const { data } = await api.get('/users/me/profile');
+      user.value = data;
+      localStorage.setItem('user', JSON.stringify(data));
+    } catch (err) {
+      console.error('Failed to refresh user:', err);
     }
   };
 
@@ -84,10 +162,15 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     fullName,
     initials,
+    hasRole,
+    hasAnyRole,
     login,
     logout,
     init,
     setAuth,
     clearAuth,
+    updateProfile,
+    updatePreferences,
+    refreshUser,
   };
 });

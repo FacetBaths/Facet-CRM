@@ -167,6 +167,10 @@ export interface IProject extends Document {
   // Warranty
   warrantyStartDate?: Date;
 
+  // Audit fields
+  createdBy: Types.ObjectId;
+  updatedBy?: Types.ObjectId;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -350,6 +354,9 @@ const ProjectSchema = new Schema<IProject>(
     productionEndDate: { type: Date },
     estimatedCompletionDate: { type: Date },
     warrantyStartDate: { type: Date },
+    // Audit fields
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );

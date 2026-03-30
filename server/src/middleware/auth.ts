@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { User, IUser } from '../models/User';
+import { User, IUser, UserRole, hasAnyRole } from '../models/User';
 
 interface AuthRequest extends Request {
   user?: IUser;
@@ -34,7 +34,7 @@ export const authMiddleware = async (
     
     const user = await User.findById(decoded.userId);
     
-    if (!user || !user.isActive) {
+    if (!user || user.status !== 'active') {
       res.status(401).json({ error: 'Unauthorized: User not found or inactive' });
       return;
     }
@@ -47,14 +47,33 @@ export const authMiddleware = async (
   }
 };
 
-export const requireRole = (...roles: string[]) => {
+// Require any of the specified roles
+export const requireRole = (...roles: UserRole[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
     
-    if (!roles.includes(req.user.role)) {
+    if (!hasAnyRole(req.user, roles)) {
+      res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+      return;
+    }
+    
+    next();
+  };
+};
+
+// Require all specified roles
+export const requireAllRoles = (...roles: UserRole[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    
+    const hasAll = roles.every(role => req.user!.roles.includes(role));
+    if (!hasAll) {
       res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
       return;
     }

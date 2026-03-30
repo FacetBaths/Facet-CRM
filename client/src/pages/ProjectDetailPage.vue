@@ -344,6 +344,7 @@ import { useProjectStore } from '@/stores/projects';
 import { useUserStore } from '@/stores/users';
 import { useAuthStore } from '@/stores/auth';
 import { socket, connectSocket, joinProjectRoom, leaveProjectRoom } from '@/boot/socket';
+import { api } from '@/boot/axios';
 import { useQuasar } from 'quasar';
 
 const $q = useQuasar();

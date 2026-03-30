@@ -9,6 +9,17 @@ import dotenv from 'dotenv';
 import { connectDB } from './config/database';
 import { authMiddleware } from './middleware/auth';
 
+// Import all models to ensure they're registered (prevents ref errors)
+import './models/User';
+import './models/Customer';
+import './models/Market';
+import './models/Team';
+import './models/Project';
+import './models/Product';
+import './models/Vendor';
+import './models/Subscription';
+import './models/CompanySettings';
+
 // Routes
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
@@ -18,6 +29,7 @@ import productRoutes from './routes/products';
 import vendorRoutes from './routes/vendors';
 import subscriptionRoutes from './routes/subscriptions';
 import commissionRoutes from './routes/commissions';
+import companyRoutes from './routes/company';
 
 dotenv.config();
 
@@ -70,6 +82,7 @@ app.use('/api/products', authMiddleware, productRoutes);
 app.use('/api/vendors', authMiddleware, vendorRoutes);
 app.use('/api/subscriptions', authMiddleware, subscriptionRoutes);
 app.use('/api/commissions', authMiddleware, commissionRoutes);
+app.use('/api/company', authMiddleware, companyRoutes);
 
 // Socket.io connection handling
 io.on('connection', (socket) => {

@@ -28,11 +28,44 @@
           <q-chip color="secondary" text-color="dark" size="sm">{{ userRoleLabel }}</q-chip>
           <q-btn flat round class="user-menu-btn q-ml-sm">
             <q-avatar color="primary" text-color="white" size="36px">
-              {{ authStore.initials }}
+              <q-img v-if="authStore.user?.avatar" :src="authStore.user.avatar" spinner-color="white" />
+              <span v-else class="text-weight-bold">{{ authStore.initials }}</span>
             </q-avatar>
             <q-menu class="glass-menu" anchor="bottom right" self="top right">
-              <q-list style="min-width: 180px">
-                <q-item clickable v-close-popup @click="logout">
+              <q-list style="min-width: 200px">
+                <!-- User Info Header -->
+                <q-item class="q-pa-md">
+                  <q-item-section avatar>
+                    <q-avatar color="primary" text-color="white" size="48px">
+                  <q-img v-if="authStore.user?.avatar" :src="authStore.user.avatar" spinner-color="white" />
+                  <span v-else class="text-h5 text-weight-bold">{{ authStore.initials }}</span>
+                </q-avatar>
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-weight-bold">{{ authStore.user?.firstName }} {{ authStore.user?.lastName }}</q-item-label>
+                    <q-item-label caption>{{ authStore.user?.email }}</q-item-label>
+                    <q-item-label>
+                      <q-badge color="secondary" text-color="dark" size="sm">{{ userRoleLabel }}</q-badge>
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+                
+                <q-separator />
+                
+                <!-- Menu Items -->
+                <q-item clickable v-close-popup @click="goToProfile">
+                  <q-item-section avatar><q-icon name="person" color="primary" /></q-item-section>
+                  <q-item-section>My Profile</q-item-section>
+                </q-item>
+                
+                <q-item clickable v-close-popup @click="goToSettings">
+                  <q-item-section avatar><q-icon name="settings" color="primary" /></q-item-section>
+                  <q-item-section>Settings</q-item-section>
+                </q-item>
+                
+                <q-separator />
+                
+                <q-item clickable v-close-popup @click="logout" class="text-negative">
                   <q-item-section avatar><q-icon name="logout" color="negative" /></q-item-section>
                   <q-item-section>Logout</q-item-section>
                 </q-item>
@@ -58,31 +91,50 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 
-const navTabs = [
-  { path: '/', label: 'Dashboard', icon: 'dashboard' },
-  { path: '/projects/pipeline', label: 'Pipeline', icon: 'view_kanban' },
-  { path: '/projects', label: 'Projects', icon: 'assignment' },
-  { path: '/customers', label: 'Customers', icon: 'people' },
-  { path: '/subscriptions', label: 'Subscriptions', icon: 'autorenew' },
-  { path: '/products', label: 'Products', icon: 'inventory_2' },
-  { path: '/commissions', label: 'Commissions', icon: 'paid' },
-];
+const navTabs = computed(() => {
+  const tabs = [
+    { path: '/', label: 'Dashboard', icon: 'dashboard' },
+    { path: '/projects/pipeline', label: 'Pipeline', icon: 'view_kanban' },
+    { path: '/projects', label: 'Projects', icon: 'assignment' },
+    { path: '/customers', label: 'Customers', icon: 'people' },
+    { path: '/subscriptions', label: 'Subscriptions', icon: 'autorenew' },
+    { path: '/products', label: 'Products', icon: 'inventory_2' },
+    { path: '/commissions', label: 'Commissions', icon: 'paid' },
+    { path: '/users', label: 'Users', icon: 'manage_accounts' },
+  ];
+  
+  // Add Company Settings for admins
+  if (authStore.hasRole('admin')) {
+    tabs.push({ path: '/company-settings', label: 'Company', icon: 'business' });
+  }
+  
+  return tabs;
+});
 
 const userRoleLabel = computed(() => {
   const roles: Record<string, string> = {
     admin: 'Admin',
     bdc: 'BDC',
     sales: 'Sales',
-    design_consultant: 'Designer',
+    warehouse: 'Warehouse',
     production: 'Production',
     contractor: 'Contractor',
   };
-  return roles[authStore.user?.role] || 'User';
+  if (!authStore.user?.roles) return 'User';
+  return authStore.user.roles.map(r => roles[r] || r).join(', ');
 });
 
 const logout = () => {
   authStore.logout();
   router.push('/login');
+};
+
+const goToProfile = () => {
+  router.push('/profile');
+};
+
+const goToSettings = () => {
+  router.push('/company-settings');
 };
 </script>
 

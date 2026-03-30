@@ -21,6 +21,67 @@
 - [ ] Facet Radiance (subscriptions) - SCHEMA READY, UI PENDING
 - [ ] Facet Refinery (retail products) - SCHEMA READY, UI PENDING
 
+### Major New Requirements (Added 2026-03-29)
+
+#### Calendar/Scheduling System (Sales & Production)
+**Purpose:** Replace LEAP's shared calendars with native CRM scheduling
+**Current State (LEAP):** Sales appointments calendar → syncs to SalesPro for assigned rep; Production calendar → tracks installer schedules
+
+**CRM Features:**
+- [ ] Sales appointment scheduling linked to Projects/Customers
+- [ ] Production calendar for installer scheduling
+- [ ] Calendar view in CRM (month/week/day)
+- [ ] Appointment notifications (reminders for reps/installers)
+- [ ] Conflict detection (double-booking prevention)
+
+**Schema Additions:**
+```
+calendar_events
+├── title, description
+├── type: enum[sales_appointment, install_slot, delivery, other]
+├── projectId (ref - optional)
+├── customerId (ref - optional)
+├── assignedUserIds: [refs] (rep or installer)
+├── startTime, endTime
+├── location/address
+├── status: enum[scheduled, confirmed, completed, cancelled, no_show]
+└── source: enum[crm_created, imported]
+```
+
+**Nice to Have:** Google/Outlook calendar sync for contractor schedules
+
+#### Email Integration (privateemail.com)
+**Current State:** Private email hosted on privateemail.com, separate from CRM
+
+**CRM Integration:**
+- [ ] IMAP/SMTP connection to privateemail.com
+- [ ] Email threads linked to Customers/Projects
+- [ ] Send email directly from CRM (with templates)
+- [ ] Email activity auto-logged to project feed
+- [ ] File attachments stored in project files
+
+**Features:**
+- [ ] Email composer with contact auto-complete
+- [ ] Templates for common communications (appointment confirmation, install notice, etc.)
+- [ ] Email history per customer/project
+- [ ] "Send and Log" button in project detail
+
+**Schema Additions:**
+```
+emails
+├── customerId (ref)
+├── projectId (ref - optional)
+├── threadId (for grouping conversations)
+├── direction: enum[inbound, outbound]
+├── subject, body (text + html)
+├── from: {name, email}
+├── to: [{name, email}]
+├── cc, bcc
+├── sentAt/receivedAt
+├── status: enum[draft, sent, delivered, read, replied]
+└── attachments: [{filename, url, size}]
+```
+
 ---
 
 ## Completion Status
@@ -80,6 +141,26 @@
    - Communication history
    - Payment history across all projects
    - File: `client/src/pages/CustomerDetailPage.vue`
+
+### NEW HIGH PRIORITY (From 2026-03-29)
+
+3. **Calendar System Backend**
+   - Create `calendar_events` collection
+   - REST API: GET/POST/PUT /calendar-events
+   - Query by date range, user, project
+   - Conflict detection logic
+
+4. **Email Integration Backend**
+   - Create `emails` collection
+   - IMAP client for privateemail.com sync
+   - REST API for send/receive
+   - Webhook to auto-log emails to projects
+
+5. **Calendar Views (Frontend)**
+   - Calendar page with month/week/day views
+   - Sales appointment scheduler
+   - Production/installer scheduling
+   - Drag-to-reschedule appointments
 
 ### MEDIUM PRIORITY
 3. **Product Catalog Management**
@@ -373,6 +454,18 @@ VITE_SOCKET_URL=http://localhost:3000
 5. **Mobile App:** Is mobile web enough, or need native app for contractors?
 
 6. **Payment Processing:** Stripe/Square integration for taking payments directly?
+
+### Calendar Integration Questions
+7. **Data Migration:** Any historical calendar data from LEAP to import, or fresh start?
+8. **Calendar Permissions:** Who can see/edit which calendars? (Sales vs Production access levels)
+9. **Notifications:** Email/SMS reminders for appointments? How far in advance?
+
+### Email Integration Questions
+11. **privateemail.com Credentials:** Need SMTP/IMAP settings for Facet Renovations account
+12. **Email Sharing:** Should all reps see all email threads, or only their assigned customers?
+13. **Email Templates:** What standard emails do you send? (appointment confirmations, install reminders, etc.)
+14. **Email Logging:** Auto-log all emails to CRM, or opt-in per email?
+15. **Outbound Email:** Send from CRM using Facet domain, or individual rep emails?
 
 ---
 

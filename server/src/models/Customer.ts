@@ -20,6 +20,11 @@ export interface ICustomer extends Document {
   contacts: IContact[];
   referralSource?: string;
   notes?: string;
+  // Audit fields
+  createdBy: Types.ObjectId;
+  updatedBy?: Types.ObjectId;
+  // Current assigned sales rep
+  assignedSalesId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +52,11 @@ const CustomerSchema = new Schema<ICustomer>(
     contacts: { type: [ContactSchema], default: [] },
     referralSource: { type: String },
     notes: { type: String },
+    // Audit fields
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    // Current assigned sales rep (for ongoing relationship)
+    assignedSalesId: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );

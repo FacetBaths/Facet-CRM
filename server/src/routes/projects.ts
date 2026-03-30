@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { body } from 'express-validator';
+import { Router, Response } from 'express';
+import { body, validationResult } from 'express-validator';
 import { Project } from '../models/Project';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, requireRole } from '../middleware/auth';
 import { io } from '../index';
 
 const router = Router();
@@ -20,11 +20,48 @@ const generateProjectNumber = async (): Promise<string> => {
   return `PR${year}${month}${sequence}`;
 };
 
+// Middleware to filter projects by user role
+const filterByUserRole = async (req: AuthRequest, res: Response, next: Function) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  // Admins and managers see all projects
+  if (req.user.roles?.includes('admin')) {
+    return next();
+  }
+  
+  // Sales reps only see their assigned projects
+  if (req.user.roles?.includes('sales') || req.user.roles?.includes('bdc')) {
+    // Add filter to query - user can only see projects where they're assigned
+    (req as any).roleFilter = {
+      $or: [
+        { assignedSalesId: req.user._id },
+        { 'commission.bdcRepId': req.user._id },
+        { 'commission.salesReps.userId': req.user._id },
+        { 'tasks.assignedTo': req.user._id },
+      ],
+    };
+  }
+  
+  // Contractors see projects where they have tasks assigned
+  if (req.user.roles?.includes('contractor')) {
+    (req as any).roleFilter = {
+      'tasks.assignedTo': req.user._id,
+    };
+  }
+  
+  next();
+};
+
 // Get projects by customer ID
 router.get('/customer/:customerId', async (req: AuthRequest, res) => {
   try {
     const projects = await Project.find({ customerId: req.params.customerId })
-      .populate('assignedSalesId', 'firstName lastName')
+      .populate('assignedSalesId', 'firstName lastName email')
+      .populate('commission.bdcRepId', 'firstName lastName email')
+      .populate('createdBy', 'firstName lastName')
+      .populate('updatedBy', 'firstName lastName')
       .sort({ createdAt: -1 });
     
     res.json(projects);
@@ -33,26 +70,32 @@ router.get('/customer/:customerId', async (req: AuthRequest, res) => {
   }
 });
 
-// Get all projects
-router.get('/', async (req: AuthRequest, res) => {
+// Get all projects with role-based filtering
+router.get('/', filterByUserRole, async (req: AuthRequest, res) => {
   try {
     const { status, assignedTo, type, search } = req.query;
-    let query: any = {};
+    let query: any = { ...(req as any).roleFilter || {} };
     
     if (status) query.status = status;
     if (assignedTo) query.assignedSalesId = assignedTo;
     if (type) query.type = type;
     
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { projectNumber: { $regex: search, $options: 'i' } },
-      ];
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { projectNumber: { $regex: search, $options: 'i' } },
+        ],
+      });
     }
     
     const projects = await Project.find(query)
       .populate('customerId', 'firstName lastName contacts')
-      .populate('assignedSalesId', 'firstName lastName')
+      .populate('assignedSalesId', 'firstName lastName email phone')
+      .populate('commission.bdcRepId', 'firstName lastName email')
+      .populate('createdBy', 'firstName lastName')
+      .populate('updatedBy', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(100);
       
@@ -62,19 +105,34 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
-// Get project by ID
-router.get('/:id', async (req: AuthRequest, res) => {
+// Get project by ID with role check
+router.get('/:id', filterByUserRole, async (req: AuthRequest, res) => {
   try {
-    const project = await Project.findById(req.params.id)
+    let query: any = { _id: req.params.id };
+    const roleFilter = (req as any).roleFilter;
+    
+    // Apply role filter if not admin
+    if (roleFilter && Object.keys(roleFilter).length > 0) {
+      query = { ...query, ...roleFilter };
+    }
+    
+    const project = await Project.findOne(query)
       .populate('customerId')
       .populate('assignedSalesId', 'firstName lastName email phone')
+      .populate('commission.bdcRepId', 'firstName lastName email')
+      .populate('commission.salesReps.userId', 'firstName lastName email')
       .populate('lineItems.productId')
       .populate('tasks.assignedTo', 'firstName lastName')
       .populate('activities.userId', 'firstName lastName')
-      .populate('expenses.vendorId', 'name');
+      .populate('expenses.vendorId', 'name')
+      .populate('createdBy', 'firstName lastName email')
+      .populate('updatedBy', 'firstName lastName email')
+      .populate('changeOrders.requestedBy', 'firstName lastName')
+      .populate('changeOrders.respondedBy', 'firstName lastName')
+      .populate('payments.recordedBy', 'firstName lastName');
       
     if (!project) {
-      res.status(404).json({ error: 'Project not found' });
+      res.status(404).json({ error: 'Project not found or access denied' });
       return;
     }
     res.json(project);
@@ -97,23 +155,35 @@ router.post(
   ],
   async (req: AuthRequest, res) => {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+      
       const projectNumber = await generateProjectNumber();
       
-      const project = new Project({
+      // Set createdBy from authenticated user
+      const projectData = {
         ...req.body,
         projectNumber,
         status: 'lead',
+        createdBy: req.user?._id,
         activities: [{
           type: 'status_change',
           content: 'Project created',
+          userId: req.user?._id,
           timestamp: new Date(),
         }],
-      });
+      };
       
+      const project = new Project(projectData);
       await project.save();
       
       const populatedProject = await Project.findById(project._id)
-        .populate('customerId', 'firstName lastName');
+        .populate('customerId', 'firstName lastName')
+        .populate('createdBy', 'firstName lastName')
+        .populate('assignedSalesId', 'firstName lastName');
         
       res.status(201).json(populatedProject);
     } catch (error) {
@@ -122,17 +192,39 @@ router.post(
   }
 );
 
-// Update project
+// Update project with audit
 router.put('/:id', async (req: AuthRequest, res) => {
   try {
     const oldProject = await Project.findById(req.params.id);
+    if (!oldProject) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    
+    // Check access for non-admins
+    if (!req.user?.roles?.includes('admin')) {
+      const hasAccess = 
+        oldProject.assignedSalesId?.toString() === req.user?._id.toString() ||
+        oldProject.commission?.bdcRepId?.toString() === req.user?._id.toString() ||
+        oldProject.commission?.salesReps?.some((sr: any) => sr.userId.toString() === req.user?._id.toString());
+      
+      if (!hasAccess) {
+        res.status(403).json({ error: 'Forbidden: Not assigned to this project' });
+        return;
+      }
+    }
+    
     const newStatus = req.body.status;
     
     const project = await Project.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      {
+        ...req.body,
+        updatedBy: req.user?._id,
+      },
       { new: true, runValidators: true }
-    ).populate('customerId', 'firstName lastName');
+    ).populate('customerId', 'firstName lastName')
+     .populate('updatedBy', 'firstName lastName');
     
     if (!project) {
       res.status(404).json({ error: 'Project not found' });
@@ -140,7 +232,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
     }
     
     // Add activity if status changed
-    if (oldProject && oldProject.status !== newStatus) {
+    if (oldProject.status !== newStatus) {
       project.activities.push({
         type: 'status_change',
         content: `Status changed from ${oldProject.status} to ${newStatus}`,
@@ -159,11 +251,12 @@ router.put('/:id', async (req: AuthRequest, res) => {
   }
 });
 
-// Add activity/note
+// Add activity/note with audit
 router.post('/:id/activities', async (req: AuthRequest, res) => {
   try {
     const { type, content } = req.body;
     
+    // Set updatedBy on project when activity is added
     const project = await Project.findByIdAndUpdate(
       req.params.id,
       {
@@ -175,9 +268,10 @@ router.post('/:id/activities', async (req: AuthRequest, res) => {
             timestamp: new Date(),
           },
         },
+        updatedBy: req.user?._id,
       },
       { new: true }
-    ).populate('activities.userId', 'firstName lastName');
+    ).populate('activities.userId', 'firstName lastName email');
     
     if (!project) {
       res.status(404).json({ error: 'Project not found' });
@@ -194,7 +288,7 @@ router.post('/:id/activities', async (req: AuthRequest, res) => {
   }
 });
 
-// Add task
+// Add task with audit
 router.post('/:id/tasks', async (req: AuthRequest, res) => {
   try {
     const { title, description, assignedTo, dueDate } = req.body;
@@ -211,6 +305,7 @@ router.post('/:id/tasks', async (req: AuthRequest, res) => {
             status: 'pending',
           },
         },
+        updatedBy: req.user?._id,
       },
       { new: true }
     ).populate('tasks.assignedTo', 'firstName lastName');
@@ -229,7 +324,7 @@ router.post('/:id/tasks', async (req: AuthRequest, res) => {
   }
 });
 
-// Update task
+// Update task with audit
 router.put('/:id/tasks/:taskId', async (req: AuthRequest, res) => {
   try {
     const { status } = req.body;
@@ -240,6 +335,7 @@ router.put('/:id/tasks/:taskId', async (req: AuthRequest, res) => {
         $set: {
           'tasks.$.status': status,
           ...(status === 'completed' ? { 'tasks.$.completedAt': new Date() } : {}),
+          updatedBy: req.user?._id,
         },
       },
       { new: true }
@@ -269,7 +365,7 @@ router.put('/:id/tasks/:taskId', async (req: AuthRequest, res) => {
   }
 });
 
-// Add payment
+// Add payment with audit
 router.post('/:id/payments', async (req: AuthRequest, res) => {
   try {
     const { amount, type, method, notes } = req.body;
@@ -287,9 +383,10 @@ router.post('/:id/payments', async (req: AuthRequest, res) => {
             recordedBy: req.user?._id,
           },
         },
+        updatedBy: req.user?._id,
       },
       { new: true }
-    );
+    ).populate('payments.recordedBy', 'firstName lastName');
     
     if (!project) {
       res.status(404).json({ error: 'Project not found' });
@@ -306,7 +403,6 @@ router.post('/:id/payments', async (req: AuthRequest, res) => {
         m.completed = true;
       }
     });
-    await project.save();
     
     // Add activity
     project.activities.push({
@@ -325,7 +421,7 @@ router.post('/:id/payments', async (req: AuthRequest, res) => {
   }
 });
 
-// Add expense
+// Add expense with audit
 router.post('/:id/expenses', async (req: AuthRequest, res) => {
   try {
     const expense = {
@@ -335,7 +431,10 @@ router.post('/:id/expenses', async (req: AuthRequest, res) => {
     
     const project = await Project.findByIdAndUpdate(
       req.params.id,
-      { $push: { expenses: expense } },
+      {
+        $push: { expenses: expense },
+        $set: { updatedBy: req.user?._id },
+      },
       { new: true }
     ).populate('expenses.vendorId', 'name');
     
@@ -350,7 +449,7 @@ router.post('/:id/expenses', async (req: AuthRequest, res) => {
   }
 });
 
-// Create change order
+// Create change order with audit
 router.post('/:id/change-orders', async (req: AuthRequest, res) => {
   try {
     const { description, reason, amount } = req.body;
@@ -368,6 +467,7 @@ router.post('/:id/change-orders', async (req: AuthRequest, res) => {
             requestedAt: new Date(),
           },
         },
+        $set: { updatedBy: req.user?._id },
       },
       { new: true }
     ).populate('changeOrders.requestedBy', 'firstName lastName');
@@ -386,13 +486,51 @@ router.post('/:id/change-orders', async (req: AuthRequest, res) => {
   }
 });
 
-// Calculate commission for a project
-// Commission rules:
-// - Sales/Design: 10% OR $400 flat (toggle-based per user)
-// - BDC: 1% of contract (for setting appointment)
-// - Admin (owner level): 3%
-// - Admin (other): 2%
-router.post('/:id/calculate-commission', async (req: AuthRequest, res) => {
+// Respond to change order with audit
+router.put('/:id/change-orders/:coId', requireRole('admin'), async (req: AuthRequest, res) => {
+  try {
+    const { status } = req.body;
+    
+    const project = await Project.findOneAndUpdate(
+      { _id: req.params.id, 'changeOrders._id': req.params.coId },
+      {
+        $set: {
+          'changeOrders.$.status': status,
+          'changeOrders.$.respondedBy': req.user?._id,
+          'changeOrders.$.respondedAt': new Date(),
+          updatedBy: req.user?._id,
+        },
+      },
+      { new: true }
+    ).populate('changeOrders.requestedBy', 'firstName lastName')
+     .populate('changeOrders.respondedBy', 'firstName lastName');
+    
+    if (!project) {
+      res.status(404).json({ error: 'Project or change order not found' });
+      return;
+    }
+    
+    const co = project.changeOrders.find(c => c._id?.toString() === req.params.coId);
+    
+    // Add activity
+    project.activities.push({
+      type: 'status_change',
+      content: `Change order ${status}: ${co?.description}`,
+      userId: req.user?._id,
+      timestamp: new Date(),
+    });
+    await project.save();
+    
+    io.to(`project:${req.params.id}`).emit('project:changeOrder', { action: 'updated', changeOrder: co });
+    
+    res.json(co);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to respond to change order' });
+  }
+});
+
+// Calculate commission with audit
+router.post('/:id/calculate-commission', requireRole('admin'), async (req: AuthRequest, res) => {
   try {
     const { User } = await import('../models/User');
     const { salesRepIds = [], useFlatRate = false, splitPercentages = [] } = req.body;
@@ -416,7 +554,7 @@ router.post('/:id/calculate-commission', async (req: AuthRequest, res) => {
       const totalPercent = splitPercentages.reduce((sum: number, p: number) => sum + p, 0);
       const normalizedPercentages = totalPercent === 100 
         ? splitPercentages 
-        : splitPercentages.map(() => 100 / salesRepIds.length);
+        : salesRepIds.map(() => 100 / salesRepIds.length);
       
       // Determine base amount (flat or percentage)
       let baseAmount = 0;
@@ -456,6 +594,7 @@ router.post('/:id/calculate-commission', async (req: AuthRequest, res) => {
     
     // Update project with calculated commission
     project.commission = { ...project.commission?.toObject(), ...commissionData };
+    project.updatedBy = req.user?._id;
     await project.save();
     
     res.json(project.commission);
@@ -464,7 +603,7 @@ router.post('/:id/calculate-commission', async (req: AuthRequest, res) => {
   }
 });
 
-// Add spiff/bonus to a project
+// Add spiff/bonus with audit
 router.post('/:id/spiffs', async (req: AuthRequest, res) => {
   try {
     const { description, amount, awardedTo } = req.body;
@@ -480,9 +619,10 @@ router.post('/:id/spiffs', async (req: AuthRequest, res) => {
             paid: false,
           },
         },
+        $set: { updatedBy: req.user?._id },
       },
       { new: true }
-    );
+    ).populate('commission.spiffs.awardedTo', 'firstName lastName');
     
     if (!project) {
       res.status(404).json({ error: 'Project not found' });
@@ -496,11 +636,10 @@ router.post('/:id/spiffs', async (req: AuthRequest, res) => {
   }
 });
 
-// Mark commission as paid (updated for split commissions)
-router.put('/:id/commission/pay', async (req: AuthRequest, res) => {
+// Mark commission as paid with audit
+router.put('/:id/commission/pay', requireRole('admin'), async (req: AuthRequest, res) => {
   try {
-    const { type, userId, spiffIndex } = req.body; 
-    // type: 'sales', 'bdc', 'admin', or 'spiff'
+    const { type, userId, spiffIndex } = req.body;
     
     const updateField: any = {};
     
@@ -534,6 +673,8 @@ router.put('/:id/commission/pay', async (req: AuthRequest, res) => {
       updateField[`commission.salesReps.${salesRepIndex}.paidDate`] = new Date();
     }
     
+    updateField['updatedBy'] = req.user?._id;
+    
     const project = await Project.findByIdAndUpdate(
       req.params.id,
       { $set: updateField },
@@ -551,8 +692,8 @@ router.put('/:id/commission/pay', async (req: AuthRequest, res) => {
   }
 });
 
-// Get commission report
-router.get('/commissions/report', async (req: AuthRequest, res) => {
+// Get commission report (admin only)
+router.get('/commissions/report', requireRole('admin'), async (req: AuthRequest, res) => {
   try {
     const { startDate, endDate, userId, role } = req.query;
     
@@ -568,7 +709,7 @@ router.get('/commissions/report', async (req: AuthRequest, res) => {
       if (role === 'bdc') {
         userFilter['commission.bdcRepId'] = userId;
       } else {
-        userFilter['commission.salesRepId'] = userId;
+        userFilter['commission.salesReps.userId'] = userId;
       }
     }
     
@@ -577,7 +718,7 @@ router.get('/commissions/report', async (req: AuthRequest, res) => {
       ...userFilter,
       'commission.calculatedAt': { $exists: true },
     }).populate('customerId', 'firstName lastName')
-      .populate('commission.salesRepId', 'firstName lastName')
+      .populate('commission.salesReps.userId', 'firstName lastName')
       .populate('commission.bdcRepId', 'firstName lastName')
       .sort({ 'commission.calculatedAt': -1 });
     
@@ -585,21 +726,22 @@ router.get('/commissions/report', async (req: AuthRequest, res) => {
     const report = {
       projects,
       totals: {
-        salesCommission: projects.reduce((sum, p) => sum + (p.commission?.salesAmount || 0), 0),
+        salesCommission: projects.reduce((sum, p) => sum + (p.commission?.salesReps?.reduce((s: number, sr: any) => s + (sr.amount || 0), 0) || 0), 0),
         bdcCommission: projects.reduce((sum, p) => sum + (p.commission?.bdcAmount || 0), 0),
-        designCommission: projects.reduce((sum, p) => sum + (p.commission?.designAmount || 0), 0),
         total: 0,
         paid: 0,
         unpaid: 0,
       },
     };
     
-    report.totals.total = report.totals.salesCommission + report.totals.bdcCommission + report.totals.designCommission;
+    report.totals.total = report.totals.salesCommission + report.totals.bdcCommission;
     
     // Calculate paid/unpaid
     projects.forEach(p => {
-      if (p.commission?.salesPaid) report.totals.paid += p.commission.salesAmount || 0;
-      else report.totals.unpaid += p.commission?.salesAmount || 0;
+      p.commission?.salesReps?.forEach((sr: any) => {
+        if (sr.paid) report.totals.paid += sr.amount || 0;
+        else report.totals.unpaid += sr.amount || 0;
+      });
       
       if (p.commission?.bdcPaid) report.totals.paid += p.commission.bdcAmount || 0;
       else report.totals.unpaid += p.commission?.bdcAmount || 0;
@@ -608,6 +750,64 @@ router.get('/commissions/report', async (req: AuthRequest, res) => {
     res.json(report);
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate commission report' });
+  }
+});
+
+// Get dashboard stats (role-based)
+router.get('/stats/dashboard', async (req: AuthRequest, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    
+    let query: any = {};
+    
+    // Filter by role
+    if (!user.roles?.includes('admin')) {
+      query = {
+        $or: [
+          { assignedSalesId: user._id },
+          { 'commission.bdcRepId': user._id },
+          { 'commission.salesReps.userId': user._id },
+        ],
+      };
+    }
+    
+    const [totalProjects, activeProjects, pendingTasks, totalContractValue] = await Promise.all([
+      Project.countDocuments(query),
+      Project.countDocuments({ ...query, status: { $nin: ['completed', 'cancelled'] } }),
+      Project.aggregate([
+        { $match: query },
+        { $unwind: '$tasks' },
+        { $match: { 'tasks.status': { $in: ['pending', 'in_progress'] } } },
+        { $count: 'count' },
+      ]).then(r => r[0]?.count || 0),
+      Project.aggregate([
+        { $match: query },
+        { $group: { _id: null, total: { $sum: '$contractAmount' } } },
+      ]).then(r => r[0]?.total || 0),
+    ]);
+    
+    // Get projects by status for chart
+    const projectsByStatus = await Project.aggregate([
+      { $match: query },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+    
+    res.json({
+      totalProjects,
+      activeProjects,
+      pendingTasks,
+      totalContractValue,
+      projectsByStatus: projectsByStatus.reduce((acc, curr) => {
+        acc[curr._id] = curr.count;
+        return acc;
+      }, {} as Record<string, number>),
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch dashboard stats' });
   }
 });
 
