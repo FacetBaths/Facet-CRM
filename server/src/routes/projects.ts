@@ -422,6 +422,106 @@ router.post('/:id/payments', async (req: AuthRequest, res) => {
   }
 });
 
+// Edit payment with audit
+router.put('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
+  try {
+    const { amount, type, method, notes, correctionReason } = req.body;
+    
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    
+    const payment = project.payments.id(req.params.paymentId);
+    if (!payment) {
+      res.status(404).json({ error: 'Payment not found' });
+      return;
+    }
+    
+    // Store original values for audit
+    const originalAmount = payment.amount;
+    
+    // Update payment
+    if (amount !== undefined) payment.amount = amount;
+    if (type) payment.type = type;
+    if (method) payment.method = method;
+    if (notes !== undefined) payment.notes = notes;
+    payment.updatedAt = new Date();
+    payment.updatedBy = req.user?._id;
+    
+    // Add correction activity
+    project.activities.push({
+      type: 'payment_correction',
+      content: `Payment corrected: $${originalAmount.toLocaleString()} → $${payment.amount.toLocaleString()}${correctionReason ? ` (${correctionReason})` : ''}`,
+      userId: req.user?._id,
+      timestamp: new Date(),
+      metadata: { paymentId: req.params.paymentId, originalAmount, newAmount: payment.amount }
+    });
+    
+    await project.save();
+    
+    // Recalculate totals
+    const totalPaid = project.payments.reduce((sum, p) => sum + p.amount, 0);
+    const percentPaid = (totalPaid / project.paymentTerms.total) * 100;
+    
+    io.to(`project:${req.params.id}`).emit('project:payment', { amount: payment.amount, totalPaid, percentPaid });
+    
+    res.json(payment);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update payment' });
+  }
+});
+
+// Delete/void payment with audit
+router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
+  try {
+    const { voidReason } = req.body;
+    
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    
+    const payment = project.payments.id(req.params.paymentId);
+    if (!payment) {
+      res.status(404).json({ error: 'Payment not found' });
+      return;
+    }
+    
+    // Instead of deleting, mark as voided
+    const originalAmount = payment.amount;
+    payment.voided = true;
+    payment.voidedAt = new Date();
+    payment.voidedBy = req.user?._id;
+    payment.voidReason = voidReason || 'No reason provided';
+    
+    // Add void activity
+    project.activities.push({
+      type: 'payment_voided',
+      content: `Payment of $${originalAmount.toLocaleString()} voided${voidReason ? `: ${voidReason}` : ''}`,
+      userId: req.user?._id,
+      timestamp: new Date(),
+      metadata: { paymentId: req.params.paymentId, amount: originalAmount }
+    });
+    
+    await project.save();
+    
+    // Recalculate totals (excluding voided payments)
+    const totalPaid = project.payments
+      .filter((p: any) => !p.voided)
+      .reduce((sum: number, p: any) => sum + p.amount, 0);
+    const percentPaid = (totalPaid / project.paymentTerms.total) * 100;
+    
+    io.to(`project:${req.params.id}`).emit('project:payment', { amount: 0, totalPaid, percentPaid, voided: true });
+    
+    res.json({ message: 'Payment voided', payment });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to void payment' });
+  }
+});
+
 // Add expense with audit
 router.post('/:id/expenses', async (req: AuthRequest, res) => {
   try {

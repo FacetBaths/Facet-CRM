@@ -61,6 +61,13 @@ export interface IProjectPayment {
   appliedToMilestone?: number;
   notes?: string;
   recordedBy: Types.ObjectId;
+  // Correction/void fields
+  updatedAt?: Date;
+  updatedBy?: Types.ObjectId;
+  voided?: boolean;
+  voidedAt?: Date;
+  voidedBy?: Types.ObjectId;
+  voidReason?: string;
 }
 
 export interface IProjectExpense {
@@ -247,6 +254,13 @@ const ProjectPaymentSchema = new Schema<IProjectPayment>(
     appliedToMilestone: { type: Number },
     notes: { type: String },
     recordedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    // Correction tracking
+    updatedAt: { type: Date },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    voided: { type: Boolean, default: false },
+    voidedAt: { type: Date },
+    voidedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    voidReason: { type: String },
   },
   { _id: true }
 );

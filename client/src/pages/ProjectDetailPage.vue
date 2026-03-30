@@ -209,8 +209,122 @@
             No tasks yet. Add one above.
           </div>
         </div>
+
+        <!-- Payments Section -->
+        <div class="glass-card q-mt-md">
+          <div class="q-pa-md border-bottom">
+            <div class="row items-center justify-between">
+              <div class="text-h6 text-weight-bold">Payment History</div>
+              <q-btn flat icon="add" label="Record Payment" @click="showAddPayment = true" color="positive" />
+            </div>
+          </div>
+
+          <q-list separator>
+            <q-item v-for="payment in sortedPayments" :key="payment._id">
+              <q-item-section>
+                <q-item-label :class="{ 'text-strike text-grey-6': payment.voided }">
+                  ${{ payment.amount?.toLocaleString() }} - {{ payment.type }}
+                  <q-badge v-if="payment.voided" color="negative" class="q-ml-sm">VOIDED</q-badge>
+                </q-item-label>
+                <q-item-label caption>
+                  {{ payment.method }} • {{ formatDate(payment.date) }}
+                  <span v-if="payment.recordedBy"> by {{ payment.recordedBy.firstName }} {{ payment.recordedBy.lastName }}</span>
+                  <span v-if="payment.voided" class="text-negative"> • Voided: {{ payment.voidReason }}</span>
+                </q-item-label>
+                <q-item-label v-if="payment.notes" caption class="text-italic">{{ payment.notes }}</q-item-label>
+              </q-item-section>
+
+              <q-item-section side v-if="!payment.voided">
+                <q-btn flat round icon="edit" size="sm" @click="editPayment(payment)" class="q-mr-xs">
+                  <q-tooltip>Edit</q-tooltip>
+                </q-btn>
+                <q-btn flat round icon="block" size="sm" color="negative" @click="voidPayment(payment)">
+                  <q-tooltip>Void</q-tooltip>
+                </q-btn>
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+          <div v-if="!payments.length" class="text-center text-grey q-pa-lg">
+            No payments recorded yet.
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Edit Payment Dialog -->
+    <q-dialog v-model="showEditPayment" persistent>
+      <q-card style="min-width: 500px" class="glass-card">
+        <q-card-section>
+          <div class="text-h6">Edit Payment</div>
+        </q-card-section>
+        
+        <q-card-section class="q-gutter-md">
+          <q-input v-model.number="editPaymentData.amount" label="Amount" type="number" prefix="$" outlined required />
+          
+          <q-select
+            v-model="editPaymentData.type"
+            :options="paymentTypeOptions"
+            label="Payment Type"
+            outlined
+            emit-value
+            map-options
+            required
+          />
+          
+          <q-select
+            v-model="editPaymentData.method"
+            :options="paymentMethodOptions"
+            label="Payment Method"
+            outlined
+            emit-value
+            map-options
+            required
+          />
+          
+          <q-input v-model="editPaymentData.notes" label="Notes" type="textarea" outlined autogrow />
+          
+          <q-input 
+            v-model="editPaymentData.correctionReason" 
+            label="Reason for Correction (required)" 
+            outlined 
+            required
+          />
+        </q-card-section>
+        
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn color="primary" label="Save Changes" @click="savePaymentEdit" :loading="editing" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Void Payment Dialog -->
+    <q-dialog v-model="showVoidPayment" persistent>
+      <q-card style="min-width: 400px" class="glass-card">
+        <q-card-section>
+          <div class="text-h6 text-negative"><q-icon name="warning">Void Payment</div>
+        </q-card-section>
+        
+        <q-card-section>
+          <p>You are about to void a payment of <strong>${{ selectedPayment?.amount?.toLocaleString() }}</strong>.</p>
+          <p class="text-grey-7">This will remove the payment from the total. A record will be kept for audit purposes.</p>
+          
+          <q-input 
+            v-model="voidReason" 
+            label="Reason for voiding (required)" 
+            outlined 
+            class="q-mt-md"
+            required
+          />
+        </q-card-section>
+        
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn color="negative" label="Void Payment" @click="confirmVoidPayment" :loading="voiding" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- Add Note Dialog -->
     <q-dialog v-model="showAddNote" persistent>
@@ -366,12 +480,21 @@ const showAddNote = ref(false);
 const showAddTask = ref(false);
 const showAddPayment = ref(false);
 const showChangeOrder = ref(false);
+const showEditPayment = ref(false);
+const showVoidPayment = ref(false);
 
 // Form data
 const newNote = ref('');
 const newTask = ref({ title: '', description: '', assignedTo: '', dueDate: '' });
 const newPayment = ref({ amount: 0, type: '', method: '', notes: '' });
 const newChangeOrder = ref({ description: '', reason: '', amount: 0 });
+
+// Payment edit/void
+const selectedPayment = ref<any>(null);
+const editPaymentData = ref({ amount: 0, type: '', method: '', notes: '', correctionReason: '' });
+const voidReason = ref('');
+const editing = ref(false);
+const voiding = ref(false);
 
 const project = computed(() => projectStore.currentProject);
 const activities = computed(() => project.value?.activities || []);
@@ -384,8 +507,17 @@ const sortedActivities = computed(() => {
   );
 });
 
+const sortedPayments = computed(() => {
+  // Sort by date descending, voided at bottom
+  return [...payments.value].sort((a: any, b: any) => {
+    if (a.voided && !b.voided) return 1;
+    if (!a.voided && b.voided) return -1;
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
+});
+
 const totalPaid = computed(() => 
-  payments.value?.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0
+  payments.value?.filter((p: any) => !p.voided).reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0
 );
 
 const balance = computed(() => 
@@ -394,7 +526,9 @@ const balance = computed(() =>
 
 const paymentProgress = computed(() => {
   if (!project.value?.contractAmount || project.value.contractAmount === 0) return 0;
-  return Math.min(totalPaid.value / project.value.contractAmount, 1);
+  // Exclude voided payments from progress calculation
+  const paid = payments.value?.filter((p: any) => !p.voided).reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0;
+  return Math.min(paid / project.value.contractAmount, 1);
 });
 
 const paymentTypeOptions = [
@@ -542,7 +676,7 @@ const toggleTask = async (taskId: string, completed: boolean) => {
 
 const addPayment = async () => {
   if (!newPayment.value.amount || !newPayment.value.type || !newPayment.value.method) return;
-  
+
   adding.value = true;
   try {
     await projectStore.addPayment(route.params.id as string, newPayment.value);
@@ -553,6 +687,72 @@ const addPayment = async () => {
     $q.notify({ type: 'negative', message: 'Failed to record payment' });
   } finally {
     adding.value = false;
+  }
+};
+
+// Payment edit functions
+const editPayment = (payment: any) => {
+  selectedPayment.value = payment;
+  editPaymentData.value = {
+    amount: payment.amount,
+    type: payment.type,
+    method: payment.method,
+    notes: payment.notes || '',
+    correctionReason: ''
+  };
+  showEditPayment.value = true;
+};
+
+const savePaymentEdit = async () => {
+  if (!editPaymentData.value.correctionReason.trim()) {
+    $q.notify({ type: 'warning', message: 'Please provide a reason for the correction' });
+    return;
+  }
+
+  editing.value = true;
+  try {
+    await projectStore.updatePayment(
+      route.params.id as string,
+      selectedPayment.value._id,
+      editPaymentData.value
+    );
+    $q.notify({ type: 'positive', message: 'Payment updated' });
+    showEditPayment.value = false;
+    selectedPayment.value = null;
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to update payment' });
+  } finally {
+    editing.value = false;
+  }
+};
+
+// Payment void functions
+const voidPayment = (payment: any) => {
+  selectedPayment.value = payment;
+  voidReason.value = '';
+  showVoidPayment.value = true;
+};
+
+const confirmVoidPayment = async () => {
+  if (!voidReason.value.trim()) {
+    $q.notify({ type: 'warning', message: 'Please provide a reason for voiding' });
+    return;
+  }
+
+  voiding.value = true;
+  try {
+    await projectStore.voidPayment(
+      route.params.id as string,
+      selectedPayment.value._id,
+      voidReason.value
+    );
+    $q.notify({ type: 'positive', message: 'Payment voided' });
+    showVoidPayment.value = false;
+    selectedPayment.value = null;
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to void payment' });
+  } finally {
+    voiding.value = false;
   }
 };
 
@@ -737,6 +937,8 @@ watch(() => route.params.id, (newId, oldId) => {
 .activity-status_change { border-left: 3px solid #14F195; }
 .activity-task_complete { border-left: 3px solid #31CCEC; }
 .activity-payment { border-left: 3px solid #21BA45; }
+.activity-payment_correction { border-left: 3px solid #FF9800; }
+.activity-payment_voided { border-left: 3px solid #C10015; }
 .activity-call { border-left: 3px solid #F2C037; }
 
 .text-strike {

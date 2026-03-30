@@ -151,6 +151,50 @@ export const useProjectStore = defineStore('projects', () => {
     }
   };
 
+  const updatePayment = async (projectId: string, paymentId: string, update: any) => {
+    try {
+      const { data } = await api.put(`/projects/${projectId}/payments/${paymentId}`, update);
+      if (currentProject.value?._id === projectId) {
+        const index = currentProject.value.payments?.findIndex((p: any) => p._id === paymentId);
+        if (index > -1) {
+          currentProject.value.payments[index] = data;
+        }
+        // Recalculate payment progress
+        const totalPaid = currentProject.value.payments
+          ?.filter((p: any) => !p.voided)
+          .reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
+        currentProject.value.paymentProgress = (totalPaid / currentProject.value.contractAmount) * 100;
+      }
+      return data;
+    } catch (error) {
+      console.error('Failed to update payment:', error);
+      throw error;
+    }
+  };
+
+  const voidPayment = async (projectId: string, paymentId: string, voidReason: string) => {
+    try {
+      const { data } = await api.delete(`/projects/${projectId}/payments/${paymentId}`, {
+        data: { voidReason }
+      });
+      if (currentProject.value?._id === projectId) {
+        const index = currentProject.value.payments?.findIndex((p: any) => p._id === paymentId);
+        if (index > -1) {
+          currentProject.value.payments[index] = data.payment;
+        }
+        // Recalculate payment progress (excluding voided)
+        const totalPaid = currentProject.value.payments
+          ?.filter((p: any) => !p.voided)
+          .reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
+        currentProject.value.paymentProgress = (totalPaid / currentProject.value.contractAmount) * 100;
+      }
+      return data;
+    } catch (error) {
+      console.error('Failed to void payment:', error);
+      throw error;
+    }
+  };
+
   const calculateCommission = async (projectId: string) => {
     try {
       const { data } = await api.post(`/projects/${projectId}/calculate-commission`);
@@ -177,6 +221,8 @@ export const useProjectStore = defineStore('projects', () => {
     addTask,
     updateTaskStatus,
     addPayment,
+    updatePayment,
+    voidPayment,
     calculateCommission,
   };
 });
