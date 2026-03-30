@@ -2,9 +2,17 @@
   <q-page class="page-container" v-if="project">
     <!-- Header -->
     <div class="row items-center justify-between q-mb-md">
-      <q-btn flat icon="arrow_back" label="Back" @click="$router.push('/projects')" />
+      <q-btn
+        flat
+        icon="arrow_back"
+        label="Back"
+        @click="$router.push('/projects')"
+      />
       <div class="text-h5 text-weight-bold">{{ project.projectNumber }}</div>
-      <q-badge :color="statusColor(project.status)" class="q-px-md q-py-sm text-weight-bold">
+      <q-badge
+        :color="statusColor(project.status)"
+        class="q-px-md q-py-sm text-weight-bold"
+      >
         {{ formatStatus(project.status) }}
       </q-badge>
     </div>
@@ -14,23 +22,31 @@
       <div class="col-12 col-md-4">
         <!-- Customer Card -->
         <div class="glass-card q-pa-md q-mb-md">
-          <div class="text-h6 text-weight-bold q-mb-sm">{{ project.title }}</div>
+          <div class="text-h6 text-weight-bold q-mb-sm">
+            {{ project.title }}
+          </div>
           <div class="row items-center q-gutter-sm q-mb-sm">
             <q-icon name="person" size="20px" />
-            <a 
-              href="#" 
+            <a
+              href="#"
               class="text-weight-medium text-primary"
-              @click.prevent="$router.push(`/customers/${project.customerId?._id}`)"
+              @click.prevent="
+                $router.push(`/customers/${project.customerId?._id}`)
+              "
             >
-              {{ project.customerId?.firstName }} {{ project.customerId?.lastName }}
+              {{ project.customerId?.firstName }}
+              {{ project.customerId?.lastName }}
             </a>
           </div>
-          
+
           <div class="row items-center q-gutter-sm q-mb-sm">
             <q-icon name="location_on" size="20px" />
-            <span>{{ project.address?.street }}, {{ project.address?.city }}, {{ project.address?.state }}</span>
+            <span
+              >{{ project.address?.street }}, {{ project.address?.city }},
+              {{ project.address?.state }}</span
+            >
           </div>
-          
+
           <div class="row items-center q-gutter-sm">
             <q-icon name="phone" size="20px" />
             <span>{{ project.customerId?.contacts?.[0]?.phone }}</span>
@@ -42,17 +58,23 @@
           <div class="text-subtitle2 text-grey-7 q-mb-sm">Contract</div>
           <div class="row justify-between items-center q-mb-sm">
             <span>Amount:</span>
-            <span class="text-h6 text-weight-bold text-primary">${{ project.contractAmount?.toLocaleString() }}</span>
+            <span class="text-h6 text-weight-bold text-primary"
+              >${{ project.contractAmount?.toLocaleString() }}</span
+            >
           </div>
-          
+
           <div class="row justify-between items-center q-mb-sm">
             <span>Paid:</span>
-            <span class="text-h6 text-weight-bold text-secondary">${{ totalPaid.toLocaleString() }}</span>
+            <span class="text-h6 text-weight-bold text-secondary"
+              >${{ totalPaid.toLocaleString() }}</span
+            >
           </div>
-          
+
           <div class="row justify-between items-center q-mb-md">
             <span>Balance:</span>
-            <span class="text-h6 text-weight-bold">${{ balance.toLocaleString() }}</span>
+            <span class="text-h6 text-weight-bold"
+              >${{ balance.toLocaleString() }}</span
+            >
           </div>
 
           <q-linear-progress
@@ -63,34 +85,74 @@
             track-color="grey-4"
             class="q-mb-sm"
           />
-          
-          <div class="text-caption text-center">{{ Math.round(paymentProgress * 100) }}% Paid</div>
+
+          <div class="text-caption text-center">
+            {{ Math.round(paymentProgress * 100) }}% Paid
+          </div>
         </div>
 
         <!-- Quick Actions -->
         <div class="glass-card q-pa-md">
           <div class="text-subtitle2 text-grey-7 q-mb-sm">Quick Actions</div>
           <div class="column q-gutter-sm">
-            <q-btn color="primary" icon="note_add" label="Add Note" @click="showAddNote = true" unelevated />
-            <q-btn color="secondary" icon="task" label="Add Task" @click="showAddTask = true" unelevated />
-            <q-btn color="positive" icon="payment" label="Record Payment" @click="showAddPayment = true" unelevated />
-            <q-btn color="warning" icon="edit" label="Change Order" @click="showChangeOrder = true" unelevated />
+            <q-btn
+              color="primary"
+              icon="note_add"
+              label="Add Note"
+              @click="showAddNote = true"
+              unelevated
+            />
+            <q-btn
+              color="secondary"
+              icon="task"
+              label="Add Task"
+              @click="showAddTask = true"
+              unelevated
+            />
+            <q-btn
+              color="positive"
+              icon="payment"
+              label="Record Payment"
+              @click="showAddPayment = true"
+              unelevated
+            />
+            <q-btn
+              color="warning"
+              icon="edit"
+              label="Change Order"
+              @click="showChangeOrder = true"
+              unelevated
+            />
           </div>
         </div>
 
         <!-- Commission Card -->
-        <div class="glass-card q-pa-md q-mt-md" v-if="project.commission?.calculatedAt">
-          <div class="text-subtitle2 text-grey-7 q-mb-sm row items-center justify-between">
+        <div
+          class="glass-card q-pa-md q-mt-md"
+          v-if="project.commission?.calculatedAt"
+        >
+          <div
+            class="text-subtitle2 text-grey-7 q-mb-sm row items-center justify-between"
+          >
             <span>Commission</span>
-            <q-btn flat round icon="refresh" size="sm" @click="calculateCommission" :loading="calculating" />
+            <q-btn
+              flat
+              round
+              icon="refresh"
+              size="sm"
+              @click="calculateCommission"
+              :loading="calculating"
+            />
           </div>
-          
+
           <!-- Sales Commission -->
           <div v-if="project.commission.salesRepId" class="q-mb-sm">
             <div class="row justify-between items-center">
               <div>
                 <div class="text-caption text-grey-7">Sales Rep</div>
-                <div class="text-body2">${{ project.commission.salesAmount?.toLocaleString() }}</div>
+                <div class="text-body2">
+                  ${{ project.commission.salesAmount?.toLocaleString() }}
+                </div>
               </div>
               <q-btn
                 v-if="!project.commission.salesPaid"
@@ -108,7 +170,9 @@
             <div class="row justify-between items-center">
               <div>
                 <div class="text-caption text-grey-7">BDC</div>
-                <div class="text-body2">${{ project.commission.bdcAmount?.toLocaleString() }}</div>
+                <div class="text-body2">
+                  ${{ project.commission.bdcAmount?.toLocaleString() }}
+                </div>
               </div>
               <q-btn
                 v-if="!project.commission.bdcPaid"
@@ -127,7 +191,14 @@
         </div>
 
         <div v-else class="glass-card q-pa-md q-mt-md">
-          <q-btn color="primary" icon="calculate" label="Calculate Commission" @click="calculateCommission" :loading="calculating" class="full-width" />
+          <q-btn
+            color="primary"
+            icon="calculate"
+            label="Calculate Commission"
+            @click="calculateCommission"
+            :loading="calculating"
+            class="full-width"
+          />
         </div>
       </div>
 
@@ -138,27 +209,44 @@
           <div class="q-pa-md border-bottom">
             <div class="row items-center justify-between">
               <div class="text-h6 text-weight-bold">Activity Feed</div>
-              <q-btn flat round icon="refresh" @click="refreshActivities" :loading="loading" />
+              <q-btn
+                flat
+                round
+                icon="refresh"
+                @click="refreshActivities"
+                :loading="loading"
+              />
             </div>
           </div>
 
           <!-- Activity List -->
           <div class="activity-list q-pa-md">
-            <div v-if="!activities.length" class="text-center text-grey q-pa-lg">
+            <div
+              v-if="!activities.length"
+              class="text-center text-grey q-pa-lg"
+            >
               <q-icon name="chat" size="48px" class="q-mb-sm" />
               <div>No activity yet</div>
             </div>
 
-            <div v-for="activity in sortedActivities" :key="activity._id" class="activity-item q-pa-md q-mb-sm"
-              :class="`activity-${activity.type}`">
-              
+            <div
+              v-for="activity in sortedActivities"
+              :key="activity._id"
+              class="activity-item q-pa-md q-mb-sm"
+              :class="`activity-${activity.type}`"
+            >
               <div class="row items-start justify-between">
                 <div class="row items-center q-gutter-sm">
-                  <q-icon :name="activityIcon(activity.type)" :color="activityColor(activity.type)" size="24px" />
+                  <q-icon
+                    :name="activityIcon(activity.type)"
+                    :color="activityColor(activity.type)"
+                    size="24px"
+                  />
                   <div>
                     <div class="text-weight-medium">{{ activity.content }}</div>
                     <div class="text-caption text-grey-7">
-                      {{ activity.userId?.firstName }} {{ activity.userId?.lastName }} • 
+                      {{ activity.userId?.firstName }}
+                      {{ activity.userId?.lastName }} •
                       {{ formatDate(activity.timestamp) }}
                     </div>
                   </div>
@@ -169,17 +257,23 @@
         </div>
 
         <!-- Tasks Section -->
-        <div class="glass-card q-mt-md"
-        >
+        <div class="glass-card q-mt-md">
           <div class="q-pa-md border-bottom">
             <div class="row items-center justify-between">
               <div class="text-h6 text-weight-bold">Tasks</div>
-              <q-btn flat icon="add" label="New Task" @click="showAddTask = true" />
+              <q-btn
+                flat
+                icon="add"
+                label="New Task"
+                @click="showAddTask = true"
+              />
             </div>
           </div>
 
           <q-list separator>
-            <q-item v-for="task in tasks" :key="task._id"
+            <q-item
+              v-for="task in tasks"
+              :key="task._id"
               :class="{ 'bg-green-1': task.status === 'completed' }"
             >
               <q-item-section avatar>
@@ -188,19 +282,23 @@
                   @update:model-value="toggleTask(task._id, $event)"
                 />
               </q-item-section>
-              
+
               <q-item-section>
-                <q-item-label :class="{ 'text-strike': task.status === 'completed' }">
+                <q-item-label
+                  :class="{ 'text-strike': task.status === 'completed' }"
+                >
                   {{ task.title }}
                 </q-item-label>
                 <q-item-label caption>
-                  {{ task.assignedTo?.firstName || 'Unassigned' }} • 
-                  {{ task.dueDate ? formatDate(task.dueDate) : 'No due date' }}
+                  {{ task.assignedTo?.firstName || "Unassigned" }} •
+                  {{ task.dueDate ? formatDate(task.dueDate) : "No due date" }}
                 </q-item-label>
               </q-item-section>
-              
+
               <q-item-section side>
-                <q-badge :color="taskStatusColor(task.status)">{{ task.status }}</q-badge>
+                <q-badge :color="taskStatusColor(task.status)">{{
+                  task.status
+                }}</q-badge>
               </q-item-section>
             </q-item>
           </q-list>
@@ -215,30 +313,67 @@
           <div class="q-pa-md border-bottom">
             <div class="row items-center justify-between">
               <div class="text-h6 text-weight-bold">Payment History</div>
-              <q-btn flat icon="add" label="Record Payment" @click="showAddPayment = true" color="positive" />
+              <q-btn
+                flat
+                icon="add"
+                label="Record Payment"
+                @click="showAddPayment = true"
+                color="positive"
+              />
             </div>
           </div>
 
           <q-list separator>
             <q-item v-for="payment in sortedPayments" :key="payment._id">
               <q-item-section>
-                <q-item-label :class="{ 'text-strike text-grey-6': payment.voided }">
+                <q-item-label
+                  :class="{ 'text-strike text-grey-6': payment.voided }"
+                >
                   ${{ payment.amount?.toLocaleString() }} - {{ payment.type }}
-                  <q-badge v-if="payment.voided" color="negative" class="q-ml-sm">VOIDED</q-badge>
+                  <q-badge
+                    v-if="payment.voided"
+                    color="negative"
+                    class="q-ml-sm"
+                    >VOIDED</q-badge
+                  >
                 </q-item-label>
                 <q-item-label caption>
                   {{ payment.method }} • {{ formatDate(payment.date) }}
-                  <span v-if="payment.recordedBy"> by {{ payment.recordedBy.firstName }} {{ payment.recordedBy.lastName }}</span>
-                  <span v-if="payment.voided" class="text-negative"> • Voided: {{ payment.voidReason }}</span>
+                  <span v-if="payment.recordedBy">
+                    by {{ payment.recordedBy.firstName }}
+                    {{ payment.recordedBy.lastName }}</span
+                  >
+                  <span v-if="payment.voided" class="text-negative">
+                    • Voided: {{ payment.voidReason }}</span
+                  >
                 </q-item-label>
-                <q-item-label v-if="payment.notes" caption class="text-italic">{{ payment.notes }}</q-item-label>
+                <q-item-label
+                  v-if="payment.notes"
+                  caption
+                  class="text-italic"
+                  >{{ payment.notes }}</q-item-label
+                >
               </q-item-section>
 
               <q-item-section side v-if="!payment.voided">
-                <q-btn flat round icon="edit" size="sm" @click="editPayment(payment)" class="q-mr-xs">
+                <q-btn
+                  flat
+                  round
+                  icon="edit"
+                  size="sm"
+                  @click="editPayment(payment)"
+                  class="q-mr-xs"
+                >
                   <q-tooltip>Edit</q-tooltip>
                 </q-btn>
-                <q-btn flat round icon="block" size="sm" color="negative" @click="voidPayment(payment)">
+                <q-btn
+                  flat
+                  round
+                  icon="block"
+                  size="sm"
+                  color="negative"
+                  @click="voidPayment(payment)"
+                >
                   <q-tooltip>Void</q-tooltip>
                 </q-btn>
               </q-item-section>
@@ -258,10 +393,17 @@
         <q-card-section>
           <div class="text-h6">Edit Payment</div>
         </q-card-section>
-        
+
         <q-card-section class="q-gutter-md">
-          <q-input v-model.number="editPaymentData.amount" label="Amount" type="number" prefix="$" outlined required />
-          
+          <q-input
+            v-model.number="editPaymentData.amount"
+            label="Amount"
+            type="number"
+            prefix="$"
+            outlined
+            required
+          />
+
           <q-select
             v-model="editPaymentData.type"
             :options="paymentTypeOptions"
@@ -271,7 +413,7 @@
             map-options
             required
           />
-          
+
           <q-select
             v-model="editPaymentData.method"
             :options="paymentMethodOptions"
@@ -281,20 +423,31 @@
             map-options
             required
           />
-          
-          <q-input v-model="editPaymentData.notes" label="Notes" type="textarea" outlined autogrow />
-          
-          <q-input 
-            v-model="editPaymentData.correctionReason" 
-            label="Reason for Correction (required)" 
-            outlined 
+
+          <q-input
+            v-model="editPaymentData.notes"
+            label="Notes"
+            type="textarea"
+            outlined
+            autogrow
+          />
+
+          <q-input
+            v-model="editPaymentData.correctionReason"
+            label="Reason for Correction (required)"
+            outlined
             required
           />
         </q-card-section>
-        
+
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
-          <q-btn color="primary" label="Save Changes" @click="savePaymentEdit" :loading="editing" />
+          <q-btn
+            color="primary"
+            label="Save Changes"
+            @click="savePaymentEdit"
+            :loading="editing"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -303,25 +456,39 @@
     <q-dialog v-model="showVoidPayment" persistent>
       <q-card style="min-width: 400px" class="glass-card">
         <q-card-section>
-          <div class="text-h6 text-negative"><q-icon name="warning">Void Payment</div>
+          <div class="text-h6 text-negative">
+            <q-icon name="warning">Void Payment</q-icon>
+          </div>
         </q-card-section>
-        
+
         <q-card-section>
-          <p>You are about to void a payment of <strong>${{ selectedPayment?.amount?.toLocaleString() }}</strong>.</p>
-          <p class="text-grey-7">This will remove the payment from the total. A record will be kept for audit purposes.</p>
-          
-          <q-input 
-            v-model="voidReason" 
-            label="Reason for voiding (required)" 
-            outlined 
+          <p>
+            You are about to void a payment of
+            <strong>${{ selectedPayment?.amount?.toLocaleString() }}</strong
+            >.
+          </p>
+          <p class="text-grey-7">
+            This will remove the payment from the total. A record will be kept
+            for audit purposes.
+          </p>
+
+          <q-input
+            v-model="voidReason"
+            label="Reason for voiding (required)"
+            outlined
             class="q-mt-md"
             required
           />
         </q-card-section>
-        
+
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
-          <q-btn color="negative" label="Void Payment" @click="confirmVoidPayment" :loading="voiding" />
+          <q-btn
+            color="negative"
+            label="Void Payment"
+            @click="confirmVoidPayment"
+            :loading="voiding"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -333,11 +500,23 @@
           <div class="text-h6">Add Note</div>
         </q-card-section>
         <q-card-section>
-          <q-input v-model="newNote" type="textarea" label="Note" outlined autogrow rows="3" />
+          <q-input
+            v-model="newNote"
+            type="textarea"
+            label="Note"
+            outlined
+            autogrow
+            rows="3"
+          />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
-          <q-btn color="primary" label="Add Note" @click="addNote" :loading="adding" />
+          <q-btn
+            color="primary"
+            label="Add Note"
+            @click="addNote"
+            :loading="adding"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -349,9 +528,20 @@
           <div class="text-h6">Add Task</div>
         </q-card-section>
         <q-card-section class="q-gutter-md">
-          <q-input v-model="newTask.title" label="Task Title" outlined required />
-          <q-input v-model="newTask.description" label="Description" type="textarea" outlined autogrow />
-          
+          <q-input
+            v-model="newTask.title"
+            label="Task Title"
+            outlined
+            required
+          />
+          <q-input
+            v-model="newTask.description"
+            label="Description"
+            type="textarea"
+            outlined
+            autogrow
+          />
+
           <div class="row q-col-gutter-md">
             <div class="col-6">
               <q-select
@@ -365,14 +555,24 @@
               />
             </div>
             <div class="col-6">
-              <q-input v-model="newTask.dueDate" label="Due Date" type="date" outlined />
+              <q-input
+                v-model="newTask.dueDate"
+                label="Due Date"
+                type="date"
+                outlined
+              />
             </div>
           </div>
         </q-card-section>
-        
+
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
-          <q-btn color="primary" label="Add Task" @click="addTask" :loading="adding" />
+          <q-btn
+            color="primary"
+            label="Add Task"
+            @click="addTask"
+            :loading="adding"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -383,10 +583,17 @@
         <q-card-section>
           <div class="text-h6">Record Payment</div>
         </q-card-section>
-        
+
         <q-card-section class="q-gutter-md">
-          <q-input v-model.number="newPayment.amount" label="Amount" type="number" prefix="$" outlined required />
-          
+          <q-input
+            v-model.number="newPayment.amount"
+            label="Amount"
+            type="number"
+            prefix="$"
+            outlined
+            required
+          />
+
           <q-select
             v-model="newPayment.type"
             :options="paymentTypeOptions"
@@ -396,7 +603,7 @@
             map-options
             required
           />
-          
+
           <q-select
             v-model="newPayment.method"
             :options="paymentMethodOptions"
@@ -406,13 +613,24 @@
             map-options
             required
           />
-          
-          <q-input v-model="newPayment.notes" label="Notes" type="textarea" outlined autogrow />
+
+          <q-input
+            v-model="newPayment.notes"
+            label="Notes"
+            type="textarea"
+            outlined
+            autogrow
+          />
         </q-card-section>
-        
+
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
-          <q-btn color="positive" label="Record Payment" @click="addPayment" :loading="adding" />
+          <q-btn
+            color="positive"
+            label="Record Payment"
+            @click="addPayment"
+            :loading="adding"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -423,23 +641,50 @@
         <q-card-section>
           <div class="text-h6">Create Change Order</div>
         </q-card-section>
-        
+
         <q-card-section class="q-gutter-md">
-          <q-input v-model="newChangeOrder.description" label="Description" type="textarea" outlined autogrow required />
-          <q-input v-model="newChangeOrder.reason" label="Reason" outlined required />
-          <q-input v-model.number="newChangeOrder.amount" label="Amount" type="number" prefix="$" outlined required />
+          <q-input
+            v-model="newChangeOrder.description"
+            label="Description"
+            type="textarea"
+            outlined
+            autogrow
+            required
+          />
+          <q-input
+            v-model="newChangeOrder.reason"
+            label="Reason"
+            outlined
+            required
+          />
+          <q-input
+            v-model.number="newChangeOrder.amount"
+            label="Amount"
+            type="number"
+            prefix="$"
+            outlined
+            required
+          />
         </q-card-section>
-        
+
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
-          <q-btn color="warning" label="Create Change Order" @click="createChangeOrder" :loading="adding" />
+          <q-btn
+            color="warning"
+            label="Create Change Order"
+            @click="createChangeOrder"
+            :loading="adding"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
 
   <!-- Loading State -->
-  <q-page v-else-if="projectStore.isLoading" class="flex flex-center page-container">
+  <q-page
+    v-else-if="projectStore.isLoading"
+    class="flex flex-center page-container"
+  >
     <q-spinner size="50px" color="primary" />
     <div class="text-caption q-mt-md">Loading project...</div>
   </q-page>
@@ -456,14 +701,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { useProjectStore } from '@/stores/projects';
-import { useUserStore } from '@/stores/users';
-import { useAuthStore } from '@/stores/auth';
-import { socket, connectSocket, joinProjectRoom, leaveProjectRoom } from '@/boot/socket';
-import { api } from '@/boot/axios';
-import { useQuasar } from 'quasar';
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { useRoute } from "vue-router";
+import { useProjectStore } from "@/stores/projects";
+import { useUserStore } from "@/stores/users";
+import { useAuthStore } from "@/stores/auth";
+import {
+  socket,
+  connectSocket,
+  joinProjectRoom,
+  leaveProjectRoom,
+} from "@/boot/socket";
+import { api } from "@/boot/axios";
+import { useQuasar } from "quasar";
 
 const $q = useQuasar();
 const route = useRoute();
@@ -484,15 +734,26 @@ const showEditPayment = ref(false);
 const showVoidPayment = ref(false);
 
 // Form data
-const newNote = ref('');
-const newTask = ref({ title: '', description: '', assignedTo: '', dueDate: '' });
-const newPayment = ref({ amount: 0, type: '', method: '', notes: '' });
-const newChangeOrder = ref({ description: '', reason: '', amount: 0 });
+const newNote = ref("");
+const newTask = ref({
+  title: "",
+  description: "",
+  assignedTo: "",
+  dueDate: "",
+});
+const newPayment = ref({ amount: 0, type: "", method: "", notes: "" });
+const newChangeOrder = ref({ description: "", reason: "", amount: 0 });
 
 // Payment edit/void
 const selectedPayment = ref<any>(null);
-const editPaymentData = ref({ amount: 0, type: '', method: '', notes: '', correctionReason: '' });
-const voidReason = ref('');
+const editPaymentData = ref({
+  amount: 0,
+  type: "",
+  method: "",
+  notes: "",
+  correctionReason: "",
+});
+const voidReason = ref("");
 const editing = ref(false);
 const voiding = ref(false);
 
@@ -502,8 +763,9 @@ const tasks = computed(() => project.value?.tasks || []);
 const payments = computed(() => project.value?.payments || []);
 
 const sortedActivities = computed(() => {
-  return [...activities.value].sort((a: any, b: any) => 
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  return [...activities.value].sort(
+    (a: any, b: any) =>
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   );
 });
 
@@ -516,94 +778,101 @@ const sortedPayments = computed(() => {
   });
 });
 
-const totalPaid = computed(() => 
-  payments.value?.filter((p: any) => !p.voided).reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0
+const totalPaid = computed(
+  () =>
+    payments.value
+      ?.filter((p: any) => !p.voided)
+      .reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0,
 );
 
-const balance = computed(() => 
-  (project.value?.contractAmount || 0) - totalPaid.value
+const balance = computed(
+  () => (project.value?.contractAmount || 0) - totalPaid.value,
 );
 
 const paymentProgress = computed(() => {
-  if (!project.value?.contractAmount || project.value.contractAmount === 0) return 0;
+  if (!project.value?.contractAmount || project.value.contractAmount === 0)
+    return 0;
   // Exclude voided payments from progress calculation
-  const paid = payments.value?.filter((p: any) => !p.voided).reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0;
+  const paid =
+    payments.value
+      ?.filter((p: any) => !p.voided)
+      .reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0;
   return Math.min(paid / project.value.contractAmount, 1);
 });
 
 const paymentTypeOptions = [
-  { label: 'Deposit', value: 'deposit' },
-  { label: 'Milestone', value: 'milestone' },
-  { label: 'Monthly', value: 'monthly' },
-  { label: 'Final', value: 'final' },
+  { label: "Deposit", value: "deposit" },
+  { label: "Milestone", value: "milestone" },
+  { label: "Monthly", value: "monthly" },
+  { label: "Final", value: "final" },
 ];
 
 const paymentMethodOptions = [
-  { label: 'Cash', value: 'cash' },
-  { label: 'Check', value: 'check' },
-  { label: 'Card', value: 'card' },
-  { label: 'Financing', value: 'financing' },
+  { label: "Cash", value: "cash" },
+  { label: "Check", value: "check" },
+  { label: "Card", value: "card" },
+  { label: "Financing", value: "financing" },
 ];
 
 const formatStatus = (status: string) => {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 };
 
 const statusColor = (status: string) => {
   const colors: Record<string, string> = {
-    lead: 'grey',
-    qualified: 'info',
-    design_scheduled: 'primary',
-    contract_sent: 'warning',
-    contract_signed: 'positive',
-    production_scheduled: 'accent',
-    in_production: 'secondary',
-    completed: 'positive',
-    cancelled: 'negative',
+    lead: "grey",
+    qualified: "info",
+    design_scheduled: "primary",
+    contract_sent: "warning",
+    contract_signed: "positive",
+    production_scheduled: "accent",
+    in_production: "secondary",
+    completed: "positive",
+    cancelled: "negative",
   };
-  return colors[status] || 'grey';
+  return colors[status] || "grey";
 };
 
 const taskStatusColor = (status: string) => {
   const colors: Record<string, string> = {
-    pending: 'grey',
-    in_progress: 'warning',
-    completed: 'positive',
-    cancelled: 'negative',
+    pending: "grey",
+    in_progress: "warning",
+    completed: "positive",
+    cancelled: "negative",
   };
-  return colors[status] || 'grey';
+  return colors[status] || "grey";
 };
 
 const activityIcon = (type: string) => {
   const icons: Record<string, string> = {
-    note: 'chat',
-    status_change: 'sync',
-    task_complete: 'task_alt',
-    payment: 'payment',
-    file_upload: 'attach_file',
-    call: 'phone',
+    note: "chat",
+    status_change: "sync",
+    task_complete: "task_alt",
+    payment: "payment",
+    file_upload: "attach_file",
+    call: "phone",
   };
-  return icons[type] || 'circle';
+  return icons[type] || "circle";
 };
 
 const activityColor = (type: string) => {
   const colors: Record<string, string> = {
-    note: 'primary',
-    status_change: 'secondary',
-    task_complete: 'info',
-    payment: 'positive',
-    file_upload: 'warning',
-    call: 'accent',
+    note: "primary",
+    status_change: "secondary",
+    task_complete: "info",
+    payment: "positive",
+    file_upload: "warning",
+    call: "accent",
   };
-  return colors[type] || 'grey';
+  return colors[type] || "grey";
 };
 
 const formatDate = (date: string) => {
-  return new Date(date).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
+  return new Date(date).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 };
 
@@ -613,10 +882,10 @@ const refreshActivities = async () => {
   try {
     await projectStore.fetchProject(route.params.id as string);
     if (!projectStore.currentProject) {
-      error.value = 'Project not found';
+      error.value = "Project not found";
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load project';
+    error.value = err instanceof Error ? err.message : "Failed to load project";
   } finally {
     loading.value = false;
   }
@@ -629,18 +898,18 @@ const retryFetch = async () => {
 
 const addNote = async () => {
   if (!newNote.value.trim()) return;
-  
+
   adding.value = true;
   try {
     await projectStore.addActivity(route.params.id as string, {
-      type: 'note',
+      type: "note",
       content: newNote.value,
     });
-    $q.notify({ type: 'positive', message: 'Note added' });
-    newNote.value = '';
+    $q.notify({ type: "positive", message: "Note added" });
+    newNote.value = "";
     showAddNote.value = false;
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to add note' });
+    $q.notify({ type: "negative", message: "Failed to add note" });
   } finally {
     adding.value = false;
   }
@@ -648,15 +917,15 @@ const addNote = async () => {
 
 const addTask = async () => {
   if (!newTask.value.title.trim()) return;
-  
+
   adding.value = true;
   try {
     await projectStore.addTask(route.params.id as string, newTask.value);
-    $q.notify({ type: 'positive', message: 'Task added' });
-    newTask.value = { title: '', description: '', assignedTo: '', dueDate: '' };
+    $q.notify({ type: "positive", message: "Task added" });
+    newTask.value = { title: "", description: "", assignedTo: "", dueDate: "" };
     showAddTask.value = false;
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to add task' });
+    $q.notify({ type: "negative", message: "Failed to add task" });
   } finally {
     adding.value = false;
   }
@@ -667,24 +936,29 @@ const toggleTask = async (taskId: string, completed: boolean) => {
     await projectStore.updateTaskStatus(
       route.params.id as string,
       taskId,
-      completed ? 'completed' : 'pending'
+      completed ? "completed" : "pending",
     );
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to update task' });
+    $q.notify({ type: "negative", message: "Failed to update task" });
   }
 };
 
 const addPayment = async () => {
-  if (!newPayment.value.amount || !newPayment.value.type || !newPayment.value.method) return;
+  if (
+    !newPayment.value.amount ||
+    !newPayment.value.type ||
+    !newPayment.value.method
+  )
+    return;
 
   adding.value = true;
   try {
     await projectStore.addPayment(route.params.id as string, newPayment.value);
-    $q.notify({ type: 'positive', message: 'Payment recorded' });
-    newPayment.value = { amount: 0, type: '', method: '', notes: '' };
+    $q.notify({ type: "positive", message: "Payment recorded" });
+    newPayment.value = { amount: 0, type: "", method: "", notes: "" };
     showAddPayment.value = false;
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to record payment' });
+    $q.notify({ type: "negative", message: "Failed to record payment" });
   } finally {
     adding.value = false;
   }
@@ -697,15 +971,18 @@ const editPayment = (payment: any) => {
     amount: payment.amount,
     type: payment.type,
     method: payment.method,
-    notes: payment.notes || '',
-    correctionReason: ''
+    notes: payment.notes || "",
+    correctionReason: "",
   };
   showEditPayment.value = true;
 };
 
 const savePaymentEdit = async () => {
   if (!editPaymentData.value.correctionReason.trim()) {
-    $q.notify({ type: 'warning', message: 'Please provide a reason for the correction' });
+    $q.notify({
+      type: "warning",
+      message: "Please provide a reason for the correction",
+    });
     return;
   }
 
@@ -714,13 +991,13 @@ const savePaymentEdit = async () => {
     await projectStore.updatePayment(
       route.params.id as string,
       selectedPayment.value._id,
-      editPaymentData.value
+      editPaymentData.value,
     );
-    $q.notify({ type: 'positive', message: 'Payment updated' });
+    $q.notify({ type: "positive", message: "Payment updated" });
     showEditPayment.value = false;
     selectedPayment.value = null;
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to update payment' });
+    $q.notify({ type: "negative", message: "Failed to update payment" });
   } finally {
     editing.value = false;
   }
@@ -729,13 +1006,16 @@ const savePaymentEdit = async () => {
 // Payment void functions
 const voidPayment = (payment: any) => {
   selectedPayment.value = payment;
-  voidReason.value = '';
+  voidReason.value = "";
   showVoidPayment.value = true;
 };
 
 const confirmVoidPayment = async () => {
   if (!voidReason.value.trim()) {
-    $q.notify({ type: 'warning', message: 'Please provide a reason for voiding' });
+    $q.notify({
+      type: "warning",
+      message: "Please provide a reason for voiding",
+    });
     return;
   }
 
@@ -744,13 +1024,13 @@ const confirmVoidPayment = async () => {
     await projectStore.voidPayment(
       route.params.id as string,
       selectedPayment.value._id,
-      voidReason.value
+      voidReason.value,
     );
-    $q.notify({ type: 'positive', message: 'Payment voided' });
+    $q.notify({ type: "positive", message: "Payment voided" });
     showVoidPayment.value = false;
     selectedPayment.value = null;
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to void payment' });
+    $q.notify({ type: "negative", message: "Failed to void payment" });
   } finally {
     voiding.value = false;
   }
@@ -763,41 +1043,44 @@ const calculateCommission = async () => {
   calculating.value = true;
   try {
     await api.post(`/projects/${route.params.id}/calculate-commission`);
-    $q.notify({ type: 'positive', message: 'Commission calculated' });
+    $q.notify({ type: "positive", message: "Commission calculated" });
     // Refresh project to get updated commission data
     await projectStore.fetchProject(route.params.id as string);
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to calculate commission' });
+    $q.notify({ type: "negative", message: "Failed to calculate commission" });
   } finally {
     calculating.value = false;
   }
 };
 
-const markCommissionPaid = async (type: 'sales' | 'bdc') => {
+const markCommissionPaid = async (type: "sales" | "bdc") => {
   try {
     await api.post(`/projects/${route.params.id}/commission/pay`, { type });
-    $q.notify({ type: 'positive', message: 'Commission marked as paid' });
+    $q.notify({ type: "positive", message: "Commission marked as paid" });
     await projectStore.fetchProject(route.params.id as string);
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to mark commission as paid' });
+    $q.notify({
+      type: "negative",
+      message: "Failed to mark commission as paid",
+    });
   }
 };
 
 const createChangeOrder = async () => {
   if (!newChangeOrder.value.description || !newChangeOrder.value.reason) return;
-  
+
   adding.value = true;
   try {
     // Call API directly since we need the route param
     await projectStore.addActivity(route.params.id as string, {
-      type: 'note',
-      content: `Change Order: ${newChangeOrder.value.description} (${newChangeOrder.value.amount > 0 ? '+' : ''}$${newChangeOrder.value.amount})`,
+      type: "note",
+      content: `Change Order: ${newChangeOrder.value.description} (${newChangeOrder.value.amount > 0 ? "+" : ""}$${newChangeOrder.value.amount})`,
     });
-    $q.notify({ type: 'positive', message: 'Change order created' });
-    newChangeOrder.value = { description: '', reason: '', amount: 0 };
+    $q.notify({ type: "positive", message: "Change order created" });
+    newChangeOrder.value = { description: "", reason: "", amount: 0 };
     showChangeOrder.value = false;
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to create change order' });
+    $q.notify({ type: "negative", message: "Failed to create change order" });
   } finally {
     adding.value = false;
   }
@@ -807,16 +1090,18 @@ const createChangeOrder = async () => {
 const handleActivityUpdate = (activity: any) => {
   if (project.value?.activities) {
     // Check if activity already exists (avoid duplicates)
-    const exists = project.value.activities.some((a: any) => a._id === activity._id);
+    const exists = project.value.activities.some(
+      (a: any) => a._id === activity._id,
+    );
     if (!exists) {
       project.value.activities.push(activity);
       // Show subtle notification for real-time updates
       $q.notify({
-        type: 'info',
-        message: 'New activity added',
-        position: 'top-right',
+        type: "info",
+        message: "New activity added",
+        position: "top-right",
         timeout: 2000,
-        actions: [{ icon: 'close', color: 'white' }],
+        actions: [{ icon: "close", color: "white" }],
       });
     }
   }
@@ -824,98 +1109,135 @@ const handleActivityUpdate = (activity: any) => {
 
 const handleTaskUpdate = (payload: { action: string; task: any }) => {
   if (project.value?.tasks) {
-    const index = project.value.tasks.findIndex((t: any) => t._id === payload.task._id);
+    const index = project.value.tasks.findIndex(
+      (t: any) => t._id === payload.task._id,
+    );
     if (index > -1) {
       project.value.tasks[index] = payload.task;
-    } else if (payload.action === 'created') {
+    } else if (payload.action === "created") {
       project.value.tasks.push(payload.task);
     }
   }
 };
 
-const handlePaymentUpdate = (payload: { amount: number; totalPaid: number; percentPaid: number }) => {
+const handlePaymentUpdate = (payload: {
+  amount: number;
+  totalPaid: number;
+  percentPaid: number;
+}) => {
   if (project.value) {
     // Refresh project data to get accurate state
     projectStore.fetchProject(route.params.id as string);
   }
 };
 
-const handleChangeOrderUpdate = (payload: { action: string; changeOrder: any }) => {
+const handleChangeOrderUpdate = (payload: {
+  action: string;
+  changeOrder: any;
+}) => {
   if (project.value?.changeOrders) {
-    const index = project.value.changeOrders.findIndex((c: any) => c._id === payload.changeOrder._id);
+    const index = project.value.changeOrders.findIndex(
+      (c: any) => c._id === payload.changeOrder._id,
+    );
     if (index > -1) {
       project.value.changeOrders[index] = payload.changeOrder;
-    } else if (payload.action === 'created') {
+    } else if (payload.action === "created") {
       project.value.changeOrders.push(payload.changeOrder);
     }
   }
 };
 
-const handleCustomerUpdate = (payload: { projectId: string; customer: any }) => {
+const handleCustomerUpdate = (payload: {
+  projectId: string;
+  customer: any;
+}) => {
   // Update customer data in the current project
   if (project.value && project.value._id === payload.projectId) {
     project.value.customerId = payload.customer;
     $q.notify({
-      type: 'info',
-      message: 'Customer information updated',
-      position: 'top-right',
-      timeout: 2000
+      type: "info",
+      message: "Customer information updated",
+      position: "top-right",
+      timeout: 2000,
     });
+  }
+};
+
+const handleProjectUpdate = (updatedProject: any) => {
+  // Update the entire project when it changes (e.g., status change)
+  if (project.value && project.value._id === updatedProject._id) {
+    const oldStatus = project.value.status;
+    Object.assign(project.value, updatedProject);
+    
+    // Notify if status changed
+    if (oldStatus !== updatedProject.status) {
+      $q.notify({
+        type: "info",
+        message: `Project status changed to ${formatStatus(updatedProject.status)}`,
+        position: "top-right",
+        timeout: 3000,
+      });
+    }
   }
 };
 
 onMounted(async () => {
   const projectId = route.params.id as string;
   error.value = null;
-  
+
   try {
     await Promise.all([
       projectStore.fetchProject(projectId),
       userStore.fetchUsers(),
     ]);
-    
+
     if (!projectStore.currentProject) {
-      error.value = 'Project not found';
+      error.value = "Project not found";
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load project';
+    error.value = err instanceof Error ? err.message : "Failed to load project";
   }
-  
+
   // Connect socket and join project room
   connectSocket(authStore.token);
   joinProjectRoom(projectId);
-  
+
   // Set up socket listeners for real-time updates
-  socket.on('project:activity', handleActivityUpdate);
-  socket.on('project:task', handleTaskUpdate);
-  socket.on('project:payment', handlePaymentUpdate);
-  socket.on('project:changeOrder', handleChangeOrderUpdate);
-  socket.on('customer:updated', handleCustomerUpdate);
+  socket.on("project:activity", handleActivityUpdate);
+  socket.on("project:task", handleTaskUpdate);
+  socket.on("project:payment", handlePaymentUpdate);
+  socket.on("project:changeOrder", handleChangeOrderUpdate);
+  socket.on("customer:updated", handleCustomerUpdate);
+  socket.on("project:updated", handleProjectUpdate);
 });
 
 onUnmounted(() => {
   const projectId = route.params.id as string;
-  
+
   // Clean up socket listeners
-  socket.off('project:activity', handleActivityUpdate);
-  socket.off('project:task', handleTaskUpdate);
-  socket.off('project:payment', handlePaymentUpdate);
-  socket.off('project:changeOrder', handleChangeOrderUpdate);
-  socket.off('customer:updated', handleCustomerUpdate);
-  
+  socket.off("project:activity", handleActivityUpdate);
+  socket.off("project:task", handleTaskUpdate);
+  socket.off("project:payment", handlePaymentUpdate);
+  socket.off("project:changeOrder", handleChangeOrderUpdate);
+  socket.off("customer:updated", handleCustomerUpdate);
+  socket.off("project:updated", handleProjectUpdate);
+
   leaveProjectRoom(projectId);
 });
 
 // Re-join room if project ID changes
-watch(() => route.params.id, (newId, oldId) => {
-  if (newId !== oldId) {
-    if (oldId) leaveProjectRoom(oldId as string);
-    if (newId) {
-      joinProjectRoom(newId as string);
-      projectStore.fetchProject(newId as string);
+watch(
+  () => route.params.id,
+  (newId, oldId) => {
+    if (newId !== oldId) {
+      if (oldId) leaveProjectRoom(oldId as string);
+      if (newId) {
+        joinProjectRoom(newId as string);
+        projectStore.fetchProject(newId as string);
+      }
     }
-  }
-});
+  },
+);
 </script>
 
 <style scoped>
@@ -933,13 +1255,27 @@ watch(() => route.params.id, (newId, oldId) => {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.activity-note { border-left: 3px solid #9945FF; }
-.activity-status_change { border-left: 3px solid #14F195; }
-.activity-task_complete { border-left: 3px solid #31CCEC; }
-.activity-payment { border-left: 3px solid #21BA45; }
-.activity-payment_correction { border-left: 3px solid #FF9800; }
-.activity-payment_voided { border-left: 3px solid #C10015; }
-.activity-call { border-left: 3px solid #F2C037; }
+.activity-note {
+  border-left: 3px solid #9945ff;
+}
+.activity-status_change {
+  border-left: 3px solid #14f195;
+}
+.activity-task_complete {
+  border-left: 3px solid #31ccec;
+}
+.activity-payment {
+  border-left: 3px solid #21ba45;
+}
+.activity-payment_correction {
+  border-left: 3px solid #ff9800;
+}
+.activity-payment_voided {
+  border-left: 3px solid #c10015;
+}
+.activity-call {
+  border-left: 3px solid #f2c037;
+}
 
 .text-strike {
   text-decoration: line-through;
