@@ -434,8 +434,10 @@ router.put('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     }
     
     // Find payment by id using findIndex instead of .id()
-    const paymentIndex = project.payments.findIndex((p: any) => p._id.toString() === req.params.paymentId);
+    console.log('Edit: Looking for payment:', req.params.paymentId, 'in', project.payments?.length, 'payments');
+    const paymentIndex = project.payments?.findIndex((p: any) => p._id?.toString() === req.params.paymentId) ?? -1;
     if (paymentIndex === -1) {
+      console.error('Edit: Payment not found. Available payments:', project.payments?.map((p: any) => p._id?.toString()));
       res.status(404).json({ error: 'Payment not found' });
       return;
     }
@@ -490,8 +492,10 @@ router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     }
     
     // Find payment by id using find instead of .id()
-    const paymentIndex = project.payments.findIndex((p: any) => p._id.toString() === req.params.paymentId);
+    console.log('Looking for payment:', req.params.paymentId, 'in', project.payments?.length, 'payments');
+    const paymentIndex = project.payments?.findIndex((p: any) => p._id?.toString() === req.params.paymentId) ?? -1;
     if (paymentIndex === -1) {
+      console.error('Payment not found. Available payments:', project.payments?.map((p: any) => p._id?.toString()));
       res.status(404).json({ error: 'Payment not found' });
       return;
     }
