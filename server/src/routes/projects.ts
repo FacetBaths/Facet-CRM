@@ -73,12 +73,13 @@ router.get('/customer/:customerId', async (req: AuthRequest, res) => {
 // Get all projects with role-based filtering
 router.get('/', filterByUserRole, async (req: AuthRequest, res) => {
   try {
-    const { status, assignedTo, type, search } = req.query;
+    const { status, assignedTo, type, search, customerId } = req.query;
     let query: any = { ...(req as any).roleFilter || {} };
     
     if (status) query.status = status;
     if (assignedTo) query.assignedSalesId = assignedTo;
     if (type) query.type = type;
+    if (customerId) query.customerId = customerId;
     
     if (search) {
       query.$and = query.$and || [];
