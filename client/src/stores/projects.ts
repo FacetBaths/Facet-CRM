@@ -135,6 +135,10 @@ export const useProjectStore = defineStore('projects', () => {
     try {
       const { data } = await api.post(`/projects/${projectId}/payments`, payment);
       if (currentProject.value?._id === projectId) {
+        // Ensure payments array exists
+        if (!currentProject.value.payments) {
+          currentProject.value.payments = [];
+        }
         currentProject.value.payments.push(data);
         // Update payment milestone progress
         const totalPaid = currentProject.value.payments.reduce((sum: number, p: any) => sum + p.amount, 0);
