@@ -463,11 +463,12 @@ router.put('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     
     // Recalculate totals
     const totalPaid = project.payments.reduce((sum, p) => sum + p.amount, 0);
-    const percentPaid = (totalPaid / project.paymentTerms.total) * 100;
+    const contractAmount = project.paymentTerms?.total || project.contractAmount || 1;
+    const percentPaid = contractAmount > 0 ? (totalPaid / contractAmount) * 100 : 0;
     
     io.to(`project:${req.params.id}`).emit('project:payment', { amount: payment.amount, totalPaid, percentPaid });
     
-    res.json(payment);
+    res.json(payment.toObject());
   } catch (error) {
     res.status(500).json({ error: 'Failed to update payment' });
   }
@@ -512,11 +513,12 @@ router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     const totalPaid = project.payments
       .filter((p: any) => !p.voided)
       .reduce((sum: number, p: any) => sum + p.amount, 0);
-    const percentPaid = (totalPaid / project.paymentTerms.total) * 100;
+    const contractAmount = project.paymentTerms?.total || project.contractAmount || 1;
+    const percentPaid = contractAmount > 0 ? (totalPaid / contractAmount) * 100 : 0;
     
     io.to(`project:${req.params.id}`).emit('project:payment', { amount: 0, totalPaid, percentPaid, voided: true });
     
-    res.json({ message: 'Payment voided', payment });
+    res.json({ message: 'Payment voided', payment: payment.toObject() });
   } catch (error) {
     res.status(500).json({ error: 'Failed to void payment' });
   }
