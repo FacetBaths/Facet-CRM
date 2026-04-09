@@ -119,18 +119,18 @@ router.get('/:id', filterByUserRole, async (req: AuthRequest, res) => {
     
     const project = await Project.findOne(query)
       .populate('customerId')
-      .populate('assignedSalesId', 'firstName lastName email phone')
-      .populate('commission.bdcRepId', 'firstName lastName email')
-      .populate('commission.salesReps.userId', 'firstName lastName email')
+      .populate('assignedSalesId', 'firstName lastName email phone avatar')
+      .populate('commission.bdcRepId', 'firstName lastName email avatar')
+      .populate('commission.salesReps.userId', 'firstName lastName email avatar')
       .populate('lineItems.productId')
-      .populate('tasks.assignedTo', 'firstName lastName')
-      .populate('activities.userId', 'firstName lastName')
+      .populate('tasks.assignedTo', 'firstName lastName avatar')
+      .populate('activities.userId', 'firstName lastName email avatar')
       .populate('expenses.vendorId', 'name')
-      .populate('createdBy', 'firstName lastName email')
-      .populate('updatedBy', 'firstName lastName email')
-      .populate('changeOrders.requestedBy', 'firstName lastName')
-      .populate('changeOrders.respondedBy', 'firstName lastName')
-      .populate('payments.recordedBy', 'firstName lastName');
+      .populate('createdBy', 'firstName lastName email avatar')
+      .populate('updatedBy', 'firstName lastName email avatar')
+      .populate('changeOrders.requestedBy', 'firstName lastName avatar')
+      .populate('changeOrders.respondedBy', 'firstName lastName avatar')
+      .populate('payments.recordedBy', 'firstName lastName avatar');
       
     if (!project) {
       res.status(404).json({ error: 'Project not found or access denied' });
@@ -217,10 +217,16 @@ router.put('/:id', async (req: AuthRequest, res) => {
     
     const newStatus = req.body.status;
     
+    // Handle commission subdocument specially - merge instead of replace
+    const updateData: any = { ...req.body };
+    if (updateData.commission && oldProject.commission) {
+      updateData.commission = { ...oldProject.commission.toObject(), ...updateData.commission };
+    }
+    
     const project = await Project.findByIdAndUpdate(
       req.params.id,
       {
-        ...req.body,
+        ...updateData,
         updatedBy: req.user?._id,
       },
       { new: true, runValidators: true }
@@ -247,8 +253,9 @@ router.put('/:id', async (req: AuthRequest, res) => {
     io.to(`project:${req.params.id}`).emit('project:updated', project);
     
     res.json(project);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update project' });
+  } catch (error: any) {
+    console.error('Failed to update project:', error);
+    res.status(500).json({ error: 'Failed to update project', details: error.message });
   }
 });
 
@@ -657,6 +664,12 @@ router.post('/:id/calculate-commission', requireRole('admin'), async (req: AuthR
       return;
     }
     
+    // Validate sales reps are provided
+    if (!salesRepIds || salesRepIds.length === 0) {
+      res.status(400).json({ error: 'No sales representatives assigned. Please assign at least one sales rep to the project before calculating commission.' });
+      return;
+    }
+    
     const contractAmount = project.contractAmount || 0;
     const commissionData: any = {
       calculatedAt: new Date(),
@@ -708,7 +721,11 @@ router.post('/:id/calculate-commission', requireRole('admin'), async (req: AuthR
     }
     
     // Update project with calculated commission
-    project.commission = { ...project.commission?.toObject(), ...commissionData };
+    // Handle case where commission is undefined (Mongoose subdocument) or plain object
+    const existingCommission = project.commission 
+      ? (typeof project.commission.toObject === 'function' ? project.commission.toObject() : project.commission)
+      : {};
+    project.commission = { ...existingCommission, ...commissionData };
     project.updatedBy = req.user?._id;
     await project.save();
     

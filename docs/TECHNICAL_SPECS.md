@@ -65,9 +65,134 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
   passwordHash: String,
   firstName: String,
   lastName: String,
-  role: Enum['admin', 'bdc', 'sales', 'design_consultant', 'production', 'contractor'],
+  avatar: String,           // URL to avatar image
+  bio: String,
+  phone: String,
+  phoneExtension: String,
+  
+  // Employment
+  employeeId: String (unique, sparse),
+  employmentType: Enum['full_time', 'part_time', 'contractor', 'intern'],
+  status: Enum['active', 'inactive', 'suspended', 'terminated'],
+  hireDate: Date,
+  terminationDate: Date,
+  department: String,
+  
+  // Roles & Permissions
+  roles: [Enum['admin', 'bdc', 'sales', 'warehouse', 'production', 'contractor', 'manager', 'installer']],
+  permissions: [String],  // Granular permissions beyond roles
+  
+  // Market/Region
+  marketId: ObjectId (ref: Markets),
+  markets: [ObjectId],      // Multi-market access for managers
+  
+  // Teams
+  teamIds: [ObjectId],      // Teams/groups they belong to
+  
+  // Commission
+  commissionTier: Number,   // 1, 2, 3 for different rates
+  commissionSettings: {
+    useFlatRate: Boolean,
+    isOwner: Boolean
+  },
+  
+  // Preferences
+  preferences: {
+    theme: Enum['light', 'dark', 'auto'],
+    timezone: String,
+    language: String,
+    dateFormat: Enum['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'],
+    timeFormat: Enum['12h', '24h'],
+    notifications: {
+      email: Boolean,
+      sms: Boolean,
+      push: Boolean,
+      desktop: Boolean
+    },
+    dashboardLayout: Object
+  },
+  
+  // Security
+  lastLoginAt: Date,
+  lastLoginIp: String,
+  failedLoginAttempts: Number,
+  lockedUntil: Date,
+  passwordChangedAt: Date,
+  twoFactorEnabled: Boolean,
+  twoFactorSecret: String,
+  
+  // Audit
+  createdBy: ObjectId (ref: Users),
+  updatedBy: ObjectId (ref: Users),
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Markets Collection
+```javascript
+{
+  _id: ObjectId,
+  name: String,             // e.g., "Illinois"
+  code: String,             // e.g., "IL"
+  timezone: String,         // e.g., "America/Chicago"
+  currency: String,         // e.g., "USD"
+  managerId: ObjectId (ref: Users),
+  isActive: Boolean,
+  createdBy: ObjectId,
+  updatedBy: ObjectId,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Teams Collection
+```javascript
+{
+  _id: ObjectId,
+  name: String,
+  type: Enum['sales', 'production', 'install', 'bdc', 'admin'],
+  marketId: ObjectId (ref: Markets),
+  managerId: ObjectId (ref: Users),
+  memberIds: [ObjectId],    // Users in this team
   isActive: Boolean,
   createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### CompanySettings Collection (Singleton)
+```javascript
+{
+  _id: ObjectId,
+  name: String,
+  legalName: String,
+  taxId: String,
+  website: String,
+  
+  settings: {
+    defaultTimezone: String,
+    defaultCurrency: String,
+    defaultDateFormat: String,
+    defaultLanguage: String
+  },
+  
+  employeeIdConfig: {
+    enabled: Boolean,
+    format: String,         // e.g., "{MARKET}-{ROLE}{SEQUENCE:4}"
+    roleCodes: Map,         // { admin: 'FRA', sales: 'FRS', ... }
+    marketCodes: Map,       // { marketId: 'IL', ... }
+    lastSequence: Map       // { 'IL-FRA': 1, ... }
+  },
+  
+  branding: {
+    logoUrl: String,
+    primaryColor: String,
+    secondaryColor: String,
+    faviconUrl: String
+  },
+  
+  updatedBy: ObjectId,
   updatedAt: Date
 }
 ```
@@ -126,10 +251,18 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
   projectNumber: String (unique, indexed),  // PR{YY}{MM}{####}
   customerId: ObjectId (ref: Customers),
   type: Enum['renovation', 'service', 'warranty', 'retail'],
+  parentProjectId: ObjectId (ref: Projects), // for service calls
   status: Enum[
-    'lead', 'qualified', 'design_scheduled', 'contract_sent',
-    'contract_signed', 'production_scheduled', 'in_production',
-    'completed', 'cancelled'
+    // Prospect group
+    'lead', 'appointment', 'rehash_multitouch', 'contract_sent',
+    // Customer group  
+    'contract_signed', 'funding_cleared', 'deal_scrub_in_progress', 'change_order_needed', 'deal_scrub_complete',
+    // Production group
+    'materials_ordered', 'materials_released', 'materials_received',
+    // Install group
+    'install_contacted', 'install_in_progress', 'install_hung', 'install_complete_service_needed', 'install_complete',
+    // Completed
+    'funding_received', 'completed', 'cancelled'
   ],
   title: String,
   description: String,
@@ -142,30 +275,34 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
   assignedSalesId: ObjectId (ref: Users),
   source: String,           // Lead source
   leadDate: Date,
+  designAppointmentDate: Date,
+  contractDate: Date,
+  contractAmount: Number,
   
-  // Line items
+  // Line items (snapshot)
   lineItems: [{
     productId: ObjectId (ref: Products),
     description: String,
     quantity: Number,
     unitPrice: Number,
     total: Number,
-    category: String
+    category: Enum['materials', 'labor', 'service']
   }],
   
-  // Tasks
+  // Workflow tasks
   tasks: [{
     title: String,
     description: String,
     assignedTo: ObjectId (ref: Users),
     dueDate: Date,
     status: Enum['pending', 'in_progress', 'completed', 'cancelled'],
-    completedAt: Date
+    completedAt: Date,
+    notes: String
   }],
   
   // Activity feed (chronological)
   activities: [{
-    type: Enum['note', 'status_change', 'task_complete', 'payment', 'file_upload', 'call'],
+    type: Enum['note', 'status_change', 'task_complete', 'payment', 'payment_correction', 'payment_voided', 'file_upload', 'call'],
     content: String,
     userId: ObjectId (ref: Users),
     timestamp: Date,
@@ -177,20 +314,25 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
     description: String,
     reason: String,
     amount: Number,
-    status: Enum['pending', 'approved', 'rejected'],
+    status: Enum['pending', 'approved', 'denied'],
     requestedBy: ObjectId (ref: Users),
-    requestedAt: Date
+    requestedAt: Date,
+    respondedBy: ObjectId (ref: Users),
+    respondedAt: Date
   }],
   
   // Payments
   paymentTerms: {
-    type: Enum['standard', 'custom'],
+    type: Enum['standard', 'payment_plan'],
     total: Number,
     milestones: [{
-      percent: Number,    // 25, 50, 75, 100
-      label: String,      // "Design Deposit", "Materials Release"
+      percent: Number,
+      label: String,
       required: Boolean,
-      completed: Boolean
+      completed: Boolean,
+      trigger: Enum['manual', 'auto'],
+      schedule: Enum['monthly'],
+      monthlyAmount: Number
     }]
   },
   payments: [{
@@ -198,9 +340,16 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
     date: Date,
     type: Enum['deposit', 'milestone', 'monthly', 'final'],
     method: Enum['cash', 'check', 'card', 'financing'],
+    appliedToMilestone: Number,
     notes: String,
     recordedBy: ObjectId (ref: Users),
-    appliedToMilestone: Number
+    // Correction/void tracking
+    updatedAt: Date,
+    updatedBy: ObjectId (ref: Users),
+    voided: Boolean,
+    voidedAt: Date,
+    voidedBy: ObjectId (ref: Users),
+    voidReason: String
   }],
   
   // Expenses (for PnL)
@@ -209,35 +358,48 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
     description: String,
     amount: Number,
     date: Date,
-    category: String,
+    category: Enum['materials', 'labor', 'permits', 'equipment', 'other'],
     invoiced: Boolean,
-    paid: Boolean
+    paid: Boolean,
+    invoiceNumber: String
   }],
   
-  // Commissions
+  // Commission tracking - supports split commissions and spiffs
   commission: {
-    calculatedAt: Date,
-    calcMethod: Enum['flat', 'percentage'],
     salesReps: [{
-      userId: ObjectId,
-      splitPercent: Number,
+      userId: ObjectId (ref: Users),
+      splitPercent: Number,   // e.g., 50 for 50/50 split
       amount: Number,
       paid: Boolean,
       paidDate: Date
     }],
-    bdcRepId: ObjectId,
+    bdcRepId: ObjectId (ref: Users),
     bdcAmount: Number,
     bdcPaid: Boolean,
     bdcPaidDate: Date,
     spiffs: [{
       description: String,
       amount: Number,
-      awardedTo: ObjectId,
+      awardedTo: ObjectId (ref: Users),
       paid: Boolean,
       paidDate: Date
-    }]
+    }],
+    adminPaid: Boolean,
+    adminPaidDate: Date,
+    calculatedAt: Date,
+    calcMethod: Enum['flat', 'percentage']
   },
   
+  // Production dates
+  materialsOrderedDate: Date,
+  productionStartDate: Date,
+  productionEndDate: Date,
+  estimatedCompletionDate: Date,
+  warrantyStartDate: Date,
+  
+  // Audit fields
+  createdBy: ObjectId (ref: Users),
+  updatedBy: ObjectId (ref: Users),
   createdAt: Date,
   updatedAt: Date
 }
@@ -292,6 +454,29 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
 
 ---
 
+## Notifications (In-Memory)
+
+Notifications are stored in-memory for the MVP. Each notification has:
+
+```javascript
+{
+  _id: String (timestamp-based),
+  type: Enum['ping', 'system', 'mention', 'task_assigned', 'payment_received'],
+  userId: String,           // Recipient
+  fromUserId: String,       // Sender
+  fromUserName: String,
+  fromUserAvatar: String,
+  message: String,
+  read: Boolean,
+  readAt: Date,
+  createdAt: Date
+}
+```
+
+**Note:** Notifications are ephemeral and will be lost on server restart. For production, migrate to MongoDB with TTL index.
+
+---
+
 ## Key Design Decisions
 
 ### 1. Embedded vs Reference Documents
@@ -306,6 +491,8 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
 - Customers (referenced by projects)
 - Products (referenced by line items)
 - Vendors (referenced by expenses)
+- Markets (referenced by users)
+- Teams (referenced by users)
 
 **Rationale:** Projects are the central workflow unit. Once created, activities/tasks rarely change relationships. Embedding reduces query complexity and enables atomic updates.
 
@@ -315,18 +502,33 @@ Auto-generated format: `PR{YY}{MM}{####}`
 - Sequential counter resets monthly
 - Guaranteed unique via compound index
 
-### 3. Real-Time Architecture
+### 3. Employee ID Generation
+Auto-generated based on company config:
+- Format: `{MARKET}-{ROLE}{SEQUENCE:4}`
+- Example: `IL-FRS0001` = Illinois, Sales, #1
+- Configurable role codes (FRA=admin, FRS=sales, etc.)
+- Configurable market codes
+- Auto-incrementing sequence per market-role combo
+
+### 4. Real-Time Architecture
 Socket.io rooms named `project:{id}` for scoped updates:
 - User opens Project Detail page → joins room
 - User closes/leaves → leaves room
 - Events only broadcast to room members
 
-### 4. Commission Calculation
+### 5. Commission Calculation
 Supports split commissions (multiple sales reps):
 - Sales: 10% of contract OR $400 flat (per-user toggle)
 - BDC: 1% of contract
-- Admin: 2-3% based on role level
+- Admin: 2-3% based on role level (owner vs standard)
 - Spiffs: Additional bonuses tracked separately
+
+### 6. Role-Based Access Control
+Multi-layered permissions:
+- **Roles:** admin, manager, sales, bdc, warehouse, production, installer, contractor
+- **Permissions:** Granular permissions beyond roles (e.g., `projects.view_all`, `commissions.calculate`)
+- **Markets:** Users assigned to markets; multi-market access for managers
+- **Teams:** Group-based access for team coordination
 
 ---
 
@@ -336,21 +538,27 @@ Supports split commissions (multiple sales reps):
 - JWT tokens with 24h expiry
 - Stored in localStorage (acceptable for internal tool)
 - Passwords hashed with bcrypt (10 rounds)
+- Failed login attempt tracking with account locking
+- Optional 2FA support (schema ready)
 
 ### Authorization (Role-Based)
 | Role | Permissions |
 |------|-------------|
 | admin | Full access |
+| manager | View all in assigned markets, manage teams |
 | bdc | Lead management, commission view |
 | sales | Customer/projects, commissions |
 | design_consultant | Design appointments, measurements |
 | production | Production schedule, task updates |
+| warehouse | Inventory, materials management |
+| installer | Install scheduling, task updates |
 | contractor | Task view/update only |
 
 ### API Protection
 - Helmet.js for security headers
 - Rate limiting: 100 req/15min per IP
 - CORS restricted to configured client URL
+- Role-based route middleware
 
 ---
 
@@ -361,6 +569,9 @@ Supports split commissions (multiple sales reps):
 - `projects.customerId` - Customer project queries
 - `projects.status` - Pipeline filtering
 - `projects.assignedSalesId` - Sales dashboard
+- `users.email` - Login lookup
+- `users.employeeId` - Employee lookup
+- `users.status` + `users.marketId` - User listing
 - `customers.lastName` - Search/sort
 - `products.variants.sku` - SKU lookup
 
@@ -440,17 +651,23 @@ Response: { "status": "ok", "timestamp": "..." }
 3. **No offline support** - Requires constant connectivity
 4. **No mobile app** - Responsive web only
 5. **No automated testing** - Manual QA only
+6. **No calendar system** - Sales appointments and production scheduling pending
+7. **No email integration** - privateemail.com sync pending
 
 ---
 
 ## Future Considerations
 
-1. **Microservices** - Split POS to separate service if Refinery scales
-2. **Caching** - Redis for session store and hot data
-3. **Search** - Elasticsearch for full-text search across projects
-4. **Analytics** - MongoDB aggregation pipelines for reporting
-5. **Mobile** - Capacitor wrapper for native app feel
+1. **Calendar System** - Sales appointments and production scheduling
+2. **Email Integration** - IMAP/SMTP sync with privateemail.com
+3. **File Uploads** - S3 integration for contracts and photos
+4. **Audit Trail** - Full change tracking with user attribution
+5. **Microservices** - Split POS to separate service if Refinery scales
+6. **Caching** - Redis for session store and hot data
+7. **Search** - Elasticsearch for full-text search across projects
+8. **Analytics** - MongoDB aggregation pipelines for reporting
+9. **Mobile** - Capacitor wrapper for native app feel
 
 ---
 
-*Last Updated: 2026-03-27*
+*Last Updated: 2026-04-06*

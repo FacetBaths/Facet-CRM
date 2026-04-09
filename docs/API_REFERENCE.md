@@ -42,7 +42,36 @@ Create new user (admin only).
   "password": "secret123",
   "firstName": "Jane",
   "lastName": "Smith",
-  "role": "sales"
+  "roles": ["sales"],
+  "marketId": "...",
+  "department": "Sales"
+}
+```
+
+### POST /auth/change-password
+Change current user's password (self-service).
+
+**Request:**
+```json
+{
+  "currentPassword": "oldsecret123",
+  "newPassword": "newsecret456"
+}
+```
+
+### GET /auth/verify
+Verify current token and return user info.
+
+**Response:**
+```json
+{
+  "user": {
+    "_id": "...",
+    "email": "user@example.com",
+    "firstName": "Jane",
+    "lastName": "Smith",
+    "roles": ["sales"]
+  }
 }
 ```
 
@@ -51,7 +80,13 @@ Create new user (admin only).
 ## Users
 
 ### GET /users
-List all users.
+List all users (admin only). Supports filtering by status, role, market, and team.
+
+**Query Parameters:**
+- `status` - Filter by status (active, inactive, suspended, terminated)
+- `role` - Filter by role
+- `marketId` - Filter by assigned market
+- `teamId` - Filter by team membership
 
 **Response:**
 ```json
@@ -61,9 +96,126 @@ List all users.
     "firstName": "John",
     "lastName": "Doe",
     "email": "john@example.com",
-    "role": "sales"
+    "roles": ["sales"],
+    "employeeId": "IL-FRS0001",
+    "status": "active",
+    "marketId": { "name": "Illinois", "code": "IL" },
+    "teamIds": [...],
+    "commissionSettings": { "useFlatRate": false, "isOwner": false },
+    "preferences": { "theme": "auto", "timezone": "America/Chicago" }
   }
 ]
+```
+
+### GET /users/:id
+Get user details with populated references.
+
+### GET /users/me/profile
+Get current user's full profile.
+
+### PUT /users/me/preferences
+Update current user preferences (theme, timezone, notifications, etc.).
+
+### POST /users
+Create new user (admin only). Auto-generates employee ID if enabled.
+
+### PUT /users/:id
+Update user. Users can edit their own profile; admins can edit anyone.
+
+### PATCH /users/:id/status
+Update user status (active, inactive, suspended, terminated) - admin only.
+
+**Request:**
+```json
+{
+  "status": "suspended",
+  "reason": "Security review pending"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "User suspended successfully",
+  "user": { ... }
+}
+```
+
+### GET /users/team/:teamId
+Get all users assigned to a specific team.
+
+### GET /users/market/:marketId
+Get all users in a specific market (admin/manager only).
+
+---
+
+## Company Settings
+
+### GET /company
+Get company-wide settings (admin only).
+
+**Response:**
+```json
+{
+  "name": "Facet Renovations",
+  "legalName": "Facet Renovations LLC",
+  "taxId": "12-3456789",
+  "settings": {
+    "defaultTimezone": "America/Chicago",
+    "defaultCurrency": "USD",
+    "defaultDateFormat": "MM/DD/YYYY"
+  },
+  "employeeIdConfig": {
+    "enabled": true,
+    "format": "{MARKET}-{ROLE}{SEQUENCE:4}",
+    "roleCodes": { "admin": "FRA", "sales": "FRS" },
+    "marketCodes": { "marketId": "IL" }
+  },
+  "branding": {
+    "primaryColor": "#1976d2",
+    "secondaryColor": "#26a69a"
+  }
+}
+```
+
+### PUT /company
+Update company settings.
+
+### PUT /company/employee-id-config
+Update employee ID generation configuration.
+
+### GET /company/markets
+List all markets.
+
+### POST /company/markets
+Create new market.
+
+### PUT /company/markets/:id
+Update market.
+
+### DELETE /company/markets/:id
+Delete market (only if no users assigned).
+
+### POST /company/preview-employee-id
+Preview what employee ID would be generated for a market/role combination without actually assigning it.
+
+**Request:**
+```json
+{
+  "marketId": "market_id_here",
+  "role": "sales"
+}
+```
+
+**Response:**
+```json
+{
+  "employeeId": "IL-FRS0001",
+  "preview": true,
+  "marketCode": "IL",
+  "roleCode": "FRS",
+  "sequence": 1
+}
 ```
 
 ---
@@ -126,13 +278,19 @@ Update customer information.
 ## Projects
 
 ### GET /projects
-List projects with filters.
+List projects with role-based filtering.
 
 **Query Parameters:**
-- `status` - Filter by status (lead, qualified, etc.)
+- `status` - Filter by status
 - `assignedTo` - Filter by sales person ID
 - `type` - Filter by type (renovation, service, warranty, retail)
 - `search` - Search title or project number
+- `customerId` - Filter by customer
+
+**Role-Based Access:**
+- Admins see all projects
+- Sales/BDC see their assigned projects
+- Contractors see projects with their assigned tasks
 
 **Response:**
 ```json
@@ -181,6 +339,9 @@ Get full project details with all related data populated.
 }
 ```
 
+### GET /projects/customer/:customerId
+Get all projects for a specific customer.
+
 ### POST /projects
 Create a new project. Auto-generates project number.
 
@@ -204,7 +365,7 @@ Create a new project. Auto-generates project number.
 ```
 
 ### PUT /projects/:id
-Update project. Automatically logs status changes to activity feed.
+Update project. Automatically logs status changes to activity feed. Emits `project:updated` socket event.
 
 ### POST /projects/:id/activities
 Add activity/note to project.
@@ -217,7 +378,7 @@ Add activity/note to project.
 }
 ```
 
-**Types:** `note`, `status_change`, `task_complete`, `payment`, `file_upload`, `call`
+**Types:** `note`, `status_change`, `task_complete`, `payment`, `payment_correction`, `payment_voided`, `file_upload`, `call`
 
 ### POST /projects/:id/tasks
 Add a task to the project.
@@ -258,6 +419,27 @@ Record a payment.
 **Payment Types:** `deposit`, `milestone`, `monthly`, `final`  
 **Methods:** `cash`, `check`, `card`, `financing`
 
+### PUT /projects/:id/payments/:paymentId
+Edit a payment with audit trail.
+
+**Request:**
+```json
+{
+  "amount": 5500,
+  "correctionReason": "Customer added extra for rush fee"
+}
+```
+
+### DELETE /projects/:id/payments/:paymentId
+Void a payment (soft delete with audit trail).
+
+**Request:**
+```json
+{
+  "voidReason": "Check bounced"
+}
+```
+
 ### POST /projects/:id/expenses
 Add an expense to the project.
 
@@ -286,8 +468,33 @@ Create a change order.
 }
 ```
 
-### GET /projects/customer/:customerId
-Get all projects for a specific customer.
+### PUT /projects/:id/change-orders/:coId
+Respond to change order (approve/deny) - admin only.
+
+**Request:**
+```json
+{
+  "status": "approved"
+}
+```
+
+### GET /projects/stats/dashboard
+Get dashboard stats with role-based filtering.
+
+**Response:**
+```json
+{
+  "totalProjects": 45,
+  "activeProjects": 23,
+  "pendingTasks": 67,
+  "totalContractValue": 875000,
+  "projectsByStatus": {
+    "lead": 5,
+    "contract_signed": 8,
+    "in_production": 12
+  }
+}
+```
 
 ---
 
@@ -361,6 +568,118 @@ Update vendor.
 
 ---
 
+## Notifications
+
+Real-time notification system using Socket.io for delivery. Notifications are stored in-memory for MVP.
+
+### GET /notifications/me
+Get all notifications for current user, sorted newest first.
+
+**Response:**
+```json
+[
+  {
+    "_id": "timestamp_id",
+    "type": "ping",
+    "userId": "recipient_user_id",
+    "fromUserId": "sender_user_id",
+    "fromUserName": "John Doe",
+    "fromUserAvatar": "https://...",
+    "message": "Can you check the tile samples for PR2603001?",
+    "read": false,
+    "createdAt": "2026-04-01T10:30:00Z"
+  }
+]
+```
+
+### POST /notifications/ping
+Send a ping/message to another user.
+
+**Request:**
+```json
+{
+  "userId": "recipient_user_id",
+  "message": "Can you check the tile samples for PR2603001?"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Notification sent",
+  "notification": { ... }
+}
+```
+
+### PATCH /notifications/:id/read
+Mark a single notification as read.
+
+### PATCH /notifications/read-all
+Mark all notifications as read for current user.
+
+### DELETE /notifications/:id
+Delete a notification (only by recipient).
+
+### GET /notifications/unread-count
+Get count of unread notifications.
+
+**Response:**
+```json
+{ "count": 3 }
+```
+
+---
+
+## Teams
+
+### GET /teams
+List all teams.
+
+### POST /teams
+Create a new team.
+
+**Request:**
+```json
+{
+  "name": "Northside Sales",
+  "description": "Sales team for north Chicago suburbs",
+  "type": "sales",
+  "marketId": "market_id",
+  "leadId": "user_id",
+  "memberIds": ["user_id_1", "user_id_2"],
+  "autoAssignLeads": true,
+  "assignmentStrategy": "round_robin",
+  "goals": {
+    "monthlyRevenue": 500000,
+    "monthlyDeals": 10
+  }
+}
+```
+
+### GET /teams/:id
+Get team details.
+
+### PUT /teams/:id
+Update team.
+
+### DELETE /teams/:id
+Delete team.
+
+### POST /teams/:id/members
+Add members to a team.
+
+**Request:**
+```json
+{
+  "userIds": ["user_id_1", "user_id_2"]
+}
+```
+
+### DELETE /teams/:id/members/:userId
+Remove a member from a team.
+
+---
+
 ## Subscriptions (Facet Radiance)
 
 ### GET /subscriptions
@@ -389,6 +708,44 @@ Get upcoming renewals and service schedule.
 
 ## Commissions
 
+### GET /commissions/dashboard
+Get commission dashboard for all users with totals.
+
+**Response:**
+```json
+{
+  "users": [
+    {
+      "userId": "...",
+      "name": "John Doe",
+      "role": "sales",
+      "earned": 4500,
+      "paid": 3000,
+      "unpaid": 1500,
+      "projectCount": 12
+    }
+  ],
+  "totals": {
+    "earned": 25000,
+    "paid": 18000,
+    "unpaid": 7000
+  },
+  "rules": {
+    "sales": { "percentage": 10, "flatAmount": 400 },
+    "bdc": { "percentage": 1 },
+    "admin": { "owner": 3, "standard": 2 }
+  }
+}
+```
+
+### GET /commissions/user/:userId
+Get detailed commission breakdown for a user.
+
+**Query Parameters:**
+- `startDate` - Filter from date
+- `endDate` - Filter to date
+- `status` - Filter by paid/unpaid status
+
 ### POST /projects/:id/calculate-commission
 Calculate commissions for a project.
 
@@ -404,7 +761,8 @@ Calculate commissions for a project.
 **Commission Rules:**
 - Sales: 10% OR $400 flat (toggle per user)
 - BDC: 1% of contract
-- Admin: 2-3%
+- Admin: 2-3% (owner vs standard)
+- Supports split commissions between multiple reps
 
 ### POST /projects/:id/commission/pay
 Mark commission as paid.
@@ -417,14 +775,48 @@ Mark commission as paid.
 }
 ```
 
+### POST /projects/:id/spiffs
+Add a spiff/bonus to a project.
+
+**Request:**
+```json
+{
+  "description": "First $50k month bonus",
+  "amount": 500,
+  "awardedTo": "user_id"
+}
+```
+
 ### GET /projects/commissions/report
-Get commission report with filters.
+Get commission report with filters (admin only).
 
 **Query Parameters:**
 - `startDate` - ISO date
 - `endDate` - ISO date
 - `userId` - Filter by user
 - `role` - Filter by role type
+
+### POST /commissions/pay
+Bulk mark commissions as paid.
+
+**Request:**
+```json
+{
+  "commissions": [
+    { "projectId": "...", "type": "sales", "userId": "..." },
+    { "projectId": "...", "type": "bdc" }
+  ]
+}
+```
+
+### PUT /commissions/settings/:userId
+Update commission settings for a user.
+
+### GET /commissions/rules
+Get global commission rules.
+
+### PUT /commissions/rules
+Update global commission rules (admin only).
 
 ---
 
@@ -446,6 +838,15 @@ socket.emit('leave-project', 'project_id')
 
 ### Server → Client Events
 
+**project:updated** - Project data updated (PUT /projects/:id)
+```json
+{
+  "_id": "...",
+  "status": "contract_signed",
+  "updatedAt": "2026-03-27T..."
+}
+```
+
 **project:activity** - New activity added
 ```json
 {
@@ -465,16 +866,17 @@ socket.emit('leave-project', 'project_id')
 }
 ```
 
-**project:payment** - Payment recorded
+**project:payment** - Payment recorded, edited, or voided
 ```json
 {
   "amount": 5000,
   "totalPaid": 10000,
-  "percentPaid": 57
+  "percentPaid": 57,
+  "voided": false
 }
 ```
 
-**project:changeOrder** - Change order created
+**project:changeOrder** - Change order created or updated
 ```json
 {
   "action": "created",
@@ -497,6 +899,7 @@ All errors return appropriate HTTP status codes with JSON body:
 **Common Status Codes:**
 - `400` - Bad request (validation error)
 - `401` - Unauthorized (missing/invalid token)
+- `403` - Forbidden (insufficient permissions)
 - `404` - Resource not found
 - `500` - Server error
 
@@ -508,4 +911,4 @@ API requests are limited to 100 per 15 minutes per IP address.
 
 ---
 
-*Last Updated: 2026-03-27*
+*Last Updated: 2026-04-06*

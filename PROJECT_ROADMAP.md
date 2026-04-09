@@ -1,7 +1,7 @@
 # Facet CRM - Project Roadmap
 
-**Status:** MVP Foundation Complete (45% done)  
-**Last Updated:** 2026-03-22  
+**Status:** MVP Foundation Complete (~60% done)  
+**Last Updated:** 2026-03-31  
 **Repo:** https://github.com/FacetBaths/Facet-CRM
 
 ---
@@ -14,7 +14,7 @@
 - [x] Change order visibility
 - [ ] Service calls separate from projects (schema ready, UI pending)
 - [x] Payment milestone tracking (including payment plans)
-- [x] Real-time Socket.io updates on Project Detail page
+- [x] Real-time Socket.io updates on Project Detail page (✅ Frontend complete - March 30)
 
 ### New Divisions
 - [x] Facet Renovations (bathrooms) - FULL SUPPORT
@@ -116,9 +116,12 @@ emails
   - [x] Contract/balance display
 - [x] Customers list with create dialog
 
+### Frontend ✅ DONE (Recently Completed)
+- [x] **Customer Detail Page** - View full customer, project history, communication log
+- [x] **Socket.io integration** - Real-time updates when activities added
+- [x] **Payment Edit/Void** - UI for correcting/voiding payments with audit trail
+
 ### Frontend ⏸️ PENDING
-- [ ] **Customer Detail Page** - View full customer, project history, communication log
-- [ ] **Socket.io integration** - Real-time updates when activities added
 - [ ] Products catalog management (add/edit products with variants)
 - [ ] Vendors management
 - [ ] Subscriptions page (Radiance billing dashboard)
@@ -129,18 +132,17 @@ emails
 ## Priority Tasks (Next Session)
 
 ### HIGH PRIORITY
-1. **Socket.io Real-Time Updates**
-   - Currently: Activity feed requires refresh
-   - Should: Auto-update when someone adds note/task/payment
-   - Location: `client/src/pages/ProjectDetailPage.vue` - add socket listener
-   - Backend already broadcasts: `io.to(`project:${id}`).emit('project:activity', activity)`
 
-2. **Customer Detail Page**
-   - Full customer profile view
-   - List of all their projects
-   - Communication history
-   - Payment history across all projects
-   - File: `client/src/pages/CustomerDetailPage.vue`
+1. **Audit Trail / Change Tracking**
+   - Add user attribution to all record changes (who + when)
+   - Design: Clickable avatars with user initials next to changed fields
+   - Show timestamp on hover/click of avatar
+   - Apply to: Projects, Customers, Payments, Tasks, Change Orders
+   - Store full audit history (not just latest change)
+
+### COMPLETED RECENTLY (March 30-31)
+- ✅ Socket.io Real-Time Updates - Frontend now listens for `project:activity`, `project:task`, `project:payment`, `project:changeOrder`, `customer:updated`, `project:updated`
+- ✅ Customer Detail Page - Full customer profile with project history, activity feed sync working
 
 ### NEW HIGH PRIORITY (From 2026-03-29)
 

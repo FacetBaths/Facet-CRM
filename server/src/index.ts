@@ -30,6 +30,7 @@ import vendorRoutes from './routes/vendors';
 import subscriptionRoutes from './routes/subscriptions';
 import commissionRoutes from './routes/commissions';
 import companyRoutes from './routes/company';
+import notificationRoutes from './routes/notifications';
 
 dotenv.config();
 
@@ -83,6 +84,7 @@ app.use('/api/vendors', authMiddleware, vendorRoutes);
 app.use('/api/subscriptions', authMiddleware, subscriptionRoutes);
 app.use('/api/commissions', authMiddleware, commissionRoutes);
 app.use('/api/company', authMiddleware, companyRoutes);
+app.use('/api/notifications', authMiddleware, notificationRoutes);
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
@@ -96,6 +98,17 @@ io.on('connection', (socket) => {
   socket.on('leave-project', (projectId: string) => {
     socket.leave(`project:${projectId}`);
     console.log(`Socket ${socket.id} left project:${projectId}`);
+  });
+  
+  // Join user's personal notification room
+  socket.on('join-user', (userId: string) => {
+    socket.join(`user:${userId}`);
+    console.log(`Socket ${socket.id} joined user:${userId}`);
+  });
+  
+  socket.on('leave-user', (userId: string) => {
+    socket.leave(`user:${userId}`);
+    console.log(`Socket ${socket.id} left user:${userId}`);
   });
   
   socket.on('disconnect', () => {

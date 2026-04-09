@@ -18,6 +18,37 @@ When you log in, you'll see:
 - **Recent Activity** - What's been happening
 - **Quick Actions** - Fast ways to add customers/projects
 
+### Your Profile
+Click your avatar/name in the top right → **Profile** to:
+- Update your avatar
+- Change your password
+- Update contact info
+- View your employee ID
+
+### Notifications
+Click the bell icon in the top navigation to see:
+- Pings from other team members
+- System notifications
+- Unread message count
+
+You can mark all as read or delete individual notifications.
+
+---
+
+## Navigation Overview
+
+### Main Menu
+- **Dashboard** - Overview stats and quick actions
+- **Pipeline** - Visual kanban board of all projects by stage
+- **Projects** - List view with filters and search
+- **Customers** - Customer directory with detail pages
+- **Products** - Product catalog management
+- **Vendors** - Supplier and contractor directory
+- **Commissions** - Commission tracking and reports
+- **Subscriptions** - Facet Radiance subscription management
+- **User Management** - (Admin only) Manage team members
+- **Company Settings** - (Admin only) Configure markets, employee IDs, branding
+
 ---
 
 ## For Sales Team (Peter, Alex)
@@ -34,8 +65,23 @@ When you log in, you'll see:
 5. Now click **+ New Project** on their profile
 6. Fill in project details and click **Create**
 
-### Managing Your Pipeline
-Go to **Projects** to see all your leads.
+### Using the Pipeline View
+The Pipeline page shows all projects organized by stage groups:
+
+**Stage Groups:**
+- **Prospect** (blue) - Lead → Appointment → Rehash → Contract Sent
+- **Customer** (orange) - Contract Signed → Funding Cleared → Deal Scrub
+- **Production** (purple) - Materials Ordered → Released → Received
+- **Install** (green) - Contacted → In Progress → Hung → Complete
+- **Completed** (green) - Funding Received
+
+**Actions:**
+- Click a group header to expand/collapse sub-stages
+- Drag project cards between stages to update status
+- Click any project card to open the detail page
+
+### Managing Your Pipeline (List View)
+Go to **Projects** to see all your leads in list format.
 
 **Statuses explained:**
 | Status | What it means | What to do |
@@ -67,6 +113,24 @@ On any project page:
 
 The progress bar updates automatically. Everyone sees it update in real-time.
 
+### Editing or Voiding Payments
+Made a mistake? You can fix it:
+
+**Edit a payment:**
+1. Go to Payment History section
+2. Click the edit icon on the payment
+3. Update amount, type, or method
+4. Enter a correction reason (required)
+5. Save
+
+**Void a payment:**
+1. Go to Payment History section
+2. Click the void icon on the payment
+3. Enter void reason (e.g., "Check bounced")
+4. Confirm
+
+Both actions create audit entries in the activity feed.
+
 ### Tracking Milestones
 Look at the **Payment Progress** bar. The system automatically checks off milestones:
 - 25% - Design Deposit
@@ -75,6 +139,13 @@ Look at the **Payment Progress** bar. The system automatically checks off milest
 - 100% - Final Payment
 
 If a customer hits 47% paid, you'll see the Materials Release milestone is approaching.
+
+### Customer Detail Page
+Click any customer name to see their full profile:
+- Contact information and address
+- Complete project history
+- Total revenue and outstanding balance
+- Quick actions to create new projects
 
 ---
 
@@ -145,11 +216,12 @@ This tracks the change and notifies everyone.
 - Customer contact info
 - Project address
 - Special notes
+- Payment status (so you know if it's safe to order materials)
 
 ### What You Can Do
 - Mark tasks as complete
 - View project details
-- See payment status (so you know if it's safe to order materials)
+- See payment status
 
 ### Marking Tasks Complete
 1. Open the project
@@ -162,10 +234,22 @@ This tracks the change and notifies everyone.
 ## For Admin
 
 ### Managing Users
-Go to **Users** in the sidebar to:
+Go to **User Management** in the sidebar to:
 - Add new team members
-- Disable old accounts
+- Edit user profiles and roles
+- Assign users to markets and teams
+- Activate/suspend/terminate accounts
 - Reset passwords
+
+**Employee IDs:**
+The system can auto-generate employee IDs based on your company settings (e.g., IL-FRS0001 for Illinois Sales #1).
+
+### Managing Markets
+Go to **Company Settings → Markets** to:
+- Add new markets (e.g., Illinois, Nebraska)
+- Assign market codes (used in employee IDs)
+- Set market managers
+- Configure timezone and currency
 
 ### Commission Calculation
 1. Open a completed project
@@ -176,10 +260,15 @@ Go to **Users** in the sidebar to:
    - Flat rate vs percentage (check user profile)
 4. System calculates automatically
 
+**Commission Rules:**
+- Sales: 10% of contract OR $400 flat (per-user setting)
+- BDC: 1% of contract
+- Admin: 2-3% (owner vs standard)
+
 ### Paying Commissions
-1. Open the project
-2. Find the commission section
-3. Click **Pay** next to the person
+1. Go to **Commissions** page
+2. Find the person and click **Pay** next to their commission
+3. Or use **Bulk Pay** to pay multiple commissions at once
 4. Confirm payment date
 
 ### Running Reports
@@ -228,6 +317,12 @@ Use the search bar on the Projects page. Search by:
 ### What are "Spiffs"?
 Bonuses for specific achievements ("First $50k month", "5-star review", etc.). Admin can add these.
 
+### How do I fix a payment mistake?
+Go to the Payment History section on the project, click edit or void, and enter a reason. The system keeps an audit trail.
+
+### What's my employee ID?
+Check your **Profile** page. If auto-generation is enabled, you'll see it there (e.g., IL-FRS0001).
+
 ---
 
 ## Tips & Best Practices
@@ -262,6 +357,11 @@ The feed is the replacement for LEAP's "notes that disappear." Everything lives 
 ### Mobile Usage
 Contractors: Save the CRM as a home screen bookmark for quick access on job sites.
 
+### Pipeline View Tips
+- Use the Pipeline view for a quick visual status of all projects
+- Drag cards to update status quickly
+- Click group headers to focus on specific stages
+
 ---
 
 ## Troubleshooting
@@ -286,6 +386,11 @@ Contractors: Save the CRM as a home screen bookmark for quick access on job site
 - Red = refresh page
 - Check browser console for errors (F12)
 
+### Payment edit/void not working
+- Make sure you're an admin or the payment recorder
+- Check that the payment hasn't already been voided
+- Verify you entered a reason (required)
+
 ---
 
 ## Contact
@@ -299,4 +404,4 @@ Contractors: Save the CRM as a home screen bookmark for quick access on job site
 
 ---
 
-*Last Updated: 2026-03-27*
+*Last Updated: 2026-03-30*

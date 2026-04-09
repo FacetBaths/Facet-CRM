@@ -78,7 +78,12 @@ router.post('/preview-employee-id', async (req: AuthRequest, res) => {
     const { marketId, role } = req.body;
     
     const settings = await CompanySettings.getSettings();
-    const market = await Market.findById(marketId);
+    
+    // Only query Market if marketId is a valid ObjectId
+    let market = null;
+    if (marketId && marketId !== 'default' && /^[0-9a-fA-F]{24}$/.test(marketId)) {
+      market = await Market.findById(marketId);
+    }
     
     if (!settings.employeeIdConfig.enabled) {
       res.json({ employeeId: null, message: 'Auto-generation disabled' });

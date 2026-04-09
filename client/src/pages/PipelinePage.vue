@@ -12,122 +12,177 @@
       </div>
     </div>
 
-    <!-- Pipeline Board -->
+    <!-- Pipeline Board - Horizontal Columns -->
     <div class="pipeline-board">
+      <!-- Group Columns -->
       <div
-        v-for="column in visibleColumns"
-        :key="column.key"
+        v-for="group in pipelineGroups"
+        :key="group.status"
         class="pipeline-column"
         :class="{ 
-          'is-group': column.isGroup,
-          'is-sub-stage': !column.isGroup,
-          'drag-over': dragOverColumn === column.key,
-          [`bg-${column.color}`]: column.isGroup
+          'is-expanded': expandedGroups.includes(group.status),
+          'is-collapsed': !expandedGroups.includes(group.status)
         }"
-        :style="column.isGroup ? {} : { flex: '0 0 240px' }"
-        @dragover.prevent="dragOverColumn = column.key"
-        @dragleave="dragOverColumn = null"
-        @drop="handleDrop($event, column)"
       >
-        <!-- Group Header (clickable to expand) -->
-        <template v-if="column.isGroup">
-          <div class="group-header" :class="`bg-${column.color}`" @click="toggleGroup(column.status)">
-            <div class="row items-center justify-between">
-              <div class="text-weight-bold text-white">{{ column.label }}</div>
-              <div class="row items-center q-gutter-sm">
-                <q-badge color="white" text-color="dark">{{ getGroupCount(column.status) }}</q-badge>
-                <q-icon 
-                  :name="expandedGroups.includes(column.status) ? 'expand_less' : 'expand_more'" 
-                  color="white"
-                />
+        <!-- Group Header -->
+        <div 
+          class="group-header" 
+          :class="`bg-${group.color}`"
+          @click="toggleGroup(group.status)"
+        >
+          <div class="row items-center justify-between">
+            <div class="text-weight-bold text-white">{{ group.label }}</div>
+            <div class="row items-center q-gutter-sm">
+              <q-badge color="white" text-color="dark">{{ getGroupCount(group.status) }}</q-badge>
+              <q-icon 
+                :name="expandedGroups.includes(group.status) ? 'expand_less' : 'expand_more'" 
+                color="white"
+              />
+            </div>
+          </div>
+          <div class="text-caption text-white opacity-80 q-mt-xs">
+            ${{ formatCurrency(getGroupRevenue(group.status)) }} • {{ group.description }}
+          </div>
+        </div>
+
+        <!-- EXPANDED: Vertical Sub-stages within column -->
+        <template v-if="expandedGroups.includes(group.status)">
+          <div class="group-stages-vertical">
+            <div
+              v-for="stage in group.subStages"
+              :key="stage.value"
+              class="stage-section"
+              :class="{ 'drag-over': dragOverColumn === stage.value }"
+              @dragover.prevent="dragOverColumn = stage.value"
+              @dragleave="dragOverColumn = null"
+              @drop="handleDrop($event, stage)"
+            >
+              <!-- Stage Header -->
+              <div class="stage-header-mini">
+                <div class="text-weight-medium">{{ stage.label }}</div>
+                <q-badge color="grey-4" text-color="dark">{{ getProjectsByStatus(stage.value).length }}</q-badge>
+              </div>
+
+              <!-- Stage Cards -->
+              <div class="stage-cards-mini">
+                <div v-if="getProjectsByStatus(stage.value).length === 0" class="no-projects">
+                  <div class="text-caption opacity-60">No projects</div>
+                </div>
+                
+                <div
+                  v-for="project in getProjectsByStatus(stage.value)"
+                  :key="project._id"
+                  class="project-card-mini"
+                  draggable="true"
+                  @dragstart="handleDragStart($event, project)"
+                  @dragend="dragOverColumn = null"
+                  @click="$router.push(`/projects/${project._id}`)"
+                >
+                  <div class="text-weight-medium text-primary">{{ project.projectNumber }}</div>
+                  <div class="text-body2 q-mb-xs">{{ project.title }}</div>
+                  
+                  <div class="row items-center q-gutter-xs q-mb-xs">
+                    <q-icon name="person" size="14px" />
+                    <span class="text-caption">{{ project.customerId?.firstName }} {{ project.customerId?.lastName }}</span>
+                  </div>
+
+                  <div class="text-weight-bold text-secondary">${{ project.contractAmount?.toLocaleString() || 0 }}</div>
+
+                  <div v-if="project.tasks?.length" class="row q-mt-xs q-gutter-xs">
+                    <q-chip
+                      size="xs"
+                      :color="getTaskStatusColor(project.tasks)"
+                      text-color="white"
+                      dense
+                    >
+                      {{ getCompletedTasks(project.tasks) }}/{{ project.tasks.length }}
+                    </q-chip>
+                  </div>
+
+                  <q-linear-progress
+                    v-if="project.payments?.length"
+                    :value="getPaymentProgress(project)"
+                    size="3px"
+                    color="positive"
+                    class="q-mt-xs"
+                  />
+                </div>
               </div>
             </div>
-            <div class="text-caption text-white opacity-80 q-mt-xs">
-              ${{ formatCurrency(getGroupRevenue(column.status)) }} • {{ column.description }}
-            </div>
           </div>
         </template>
 
-        <!-- Sub-stage Header (when expanded) -->
+        <!-- COLLAPSED: All projects in group -->
         <template v-else>
-          <div class="substage-header">
-            <div class="text-weight-medium">{{ column.label }}</div>
-            <q-badge color="grey-4" text-color="dark">{{ getProjectsByStatus(column.status).length }}</q-badge>
-          </div>
-        </template>
-
-        <!-- Loading State -->
-        <div v-if="projectStore.isLoading && column.isGroup" class="column-loading">
-          <q-spinner size="30px" color="white" />
-        </div>
-
-        <!-- Column Cards -->
-        <div v-else class="column-cards" :class="{ 'substage-cards': !column.isGroup }">
-          <div v-if="getProjectsByStatus(column.status).length === 0" class="no-projects">
-            <div class="text-caption opacity-60">No projects</div>
-          </div>
-          
-          <div
-            v-for="project in getProjectsByStatus(column.status)"
-            :key="project._id"
-            class="project-card"
-            :class="{ 'in-group': column.isGroup }"
-            draggable="true"
-            @dragstart="handleDragStart($event, project)"
-            @dragend="dragOverColumn = null"
-            @click="$router.push(`/projects/${project._id}`)"
+          <div 
+            class="column-cards"
+            :class="{ 'drag-over': dragOverColumn === group.status }"
+            @dragover.prevent="dragOverColumn = group.status"
+            @dragleave="dragOverColumn = null"
+            @drop="handleDropOnGroup($event, group)"
           >
-            <!-- Show sub-stage badge when in group view -->
-            <q-badge 
-              v-if="column.isGroup" 
-              :color="getSubStageColor(project.status)"
-              class="q-mb-xs"
-              dense
-            >
-              {{ formatStatus(project.status) }}
-            </q-badge>
-
-            <div class="text-weight-medium text-primary q-mb-xs">{{ project.projectNumber }}</div>
-            <div class="text-body2 q-mb-sm">{{ project.title }}</div>
+            <div v-if="getProjectsByGroup(group.status).length === 0" class="no-projects">
+              <div class="text-caption opacity-60">No projects</div>
+            </div>
             
-            <div class="row items-center q-gutter-xs q-mb-sm">
-              <q-icon name="person" size="16px" />
-              <span class="text-caption">{{ project.customerId?.firstName }} {{ project.customerId?.lastName }}</span>
-            </div>
-
-            <div class="row items-center justify-between">
-              <span class="text-weight-bold text-secondary">${{ project.contractAmount?.toLocaleString() || 0 }}</span>
-              <q-avatar size="24px" color="grey-4" text-color="dark" v-if="project.assignedSalesId">
-                {{ getInitials(project.assignedSalesId) }}
-              </q-avatar>
-            </div>
-
-            <!-- Task Indicators -->
-            <div v-if="project.tasks?.length" class="row q-mt-sm q-gutter-xs">
-              <q-chip
-                size="xs"
-                :color="getTaskStatusColor(project.tasks)"
-                text-color="white"
+            <div
+              v-for="project in getProjectsByGroup(group.status)"
+              :key="project._id"
+              class="project-card"
+              draggable="true"
+              @dragstart="handleDragStart($event, project)"
+              @dragend="dragOverColumn = null"
+              @click="$router.push(`/projects/${project._id}`)"
+            >
+              <!-- Show sub-stage badge when collapsed -->
+              <q-badge 
+                :color="getSubStageColor(project.status)"
+                class="q-mb-xs"
                 dense
               >
-                {{ getCompletedTasks(project.tasks) }}/{{ project.tasks.length }} Tasks
-              </q-chip>
-            </div>
+                {{ formatStatus(project.status) }}
+              </q-badge>
 
-            <!-- Payment Progress -->
-            <q-linear-progress
-              v-if="project.payments?.length"
-              :value="getPaymentProgress(project)"
-              size="4px"
-              color="positive"
-              class="q-mt-sm"
-            />
+              <div class="text-weight-medium text-primary q-mb-xs">{{ project.projectNumber }}</div>
+              <div class="text-body2 q-mb-sm">{{ project.title }}</div>
+              
+              <div class="row items-center q-gutter-xs q-mb-sm">
+                <q-icon name="person" size="16px" />
+                <span class="text-caption">{{ project.customerId?.firstName }} {{ project.customerId?.lastName }}</span>
+              </div>
+
+              <div class="row items-center justify-between">
+                <span class="text-weight-bold text-secondary">${{ project.contractAmount?.toLocaleString() || 0 }}</span>
+                <q-avatar size="24px" color="grey-4" text-color="dark" v-if="project.assignedSalesId">
+                  {{ getInitials(project.assignedSalesId) }}
+                </q-avatar>
+              </div>
+
+              <div v-if="project.tasks?.length" class="row q-mt-sm q-gutter-xs">
+                <q-chip
+                  size="xs"
+                  :color="getTaskStatusColor(project.tasks)"
+                  text-color="white"
+                  dense
+                >
+                  {{ getCompletedTasks(project.tasks) }}/{{ project.tasks.length }} Tasks
+                </q-chip>
+              </div>
+
+              <q-linear-progress
+                v-if="project.payments?.length"
+                :value="getPaymentProgress(project)"
+                size="4px"
+                color="positive"
+                class="q-mt-sm"
+              />
+            </div>
           </div>
-        </div>
+        </template>
       </div>
     </div>
 
-    <!-- Stage Selection Dialog (when dropping on a group) -->
+    <!-- Stage Selection Dialog -->
     <q-dialog v-model="showStageDialog" persistent>
       <q-card class="glass-card" style="min-width: 400px">
         <q-card-section>
@@ -175,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useProjectStore } from '@/stores/projects';
 import { useUserStore } from '@/stores/users';
 import { useQuasar } from 'quasar';
@@ -199,7 +254,7 @@ const assignmentData = ref({
   note: '',
 });
 
-// Group definitions with sub-stages (matching backend enum)
+// Group definitions with sub-stages
 const pipelineGroups = [
   {
     status: 'prospect',
@@ -270,35 +325,6 @@ pipelineGroups.forEach(group => {
   });
 });
 
-// Compute visible columns based on expanded groups
-const visibleColumns = computed(() => {
-  const columns: any[] = [];
-  
-  pipelineGroups.forEach(group => {
-    // Always add the group column
-    columns.push({
-      key: group.status,
-      isGroup: true,
-      ...group,
-    });
-    
-    // Add sub-stage columns if expanded
-    if (expandedGroups.value.includes(group.status)) {
-      group.subStages.forEach(stage => {
-        columns.push({
-          key: stage.value,
-          isGroup: false,
-          status: stage.value,
-          label: stage.label,
-          color: group.color,
-        });
-      });
-    }
-  });
-  
-  return columns;
-});
-
 // Toggle group expansion
 const toggleGroup = (groupStatus: string) => {
   const index = expandedGroups.value.indexOf(groupStatus);
@@ -344,25 +370,32 @@ const handleDragStart = (event: DragEvent, project: any) => {
   }
 };
 
-const handleDrop = (event: DragEvent, column: any) => {
+const handleDrop = (event: DragEvent, stage: any) => {
   event.preventDefault();
   
   if (!draggedProject.value) return;
   
-  if (column.isGroup) {
-    // Dropped on a group - show stage selection
-    if (draggedProject.value.status !== column.subStages[0].value) {
-      targetGroup.value = column;
-      selectedStage.value = ''; // Will be set by user
-      showStageDialog.value = true;
-    }
-  } else {
-    // Dropped on a sub-stage - direct move
-    if (draggedProject.value.status !== column.status) {
-      selectedStage.value = column.status;
-      targetGroup.value = pipelineGroups.find(g => g.status === stageToGroup[column.status]);
-      updateProjectStatus(column.status);
-    }
+  if (draggedProject.value.status !== stage.value) {
+    selectedStage.value = stage.value;
+    targetGroup.value = pipelineGroups.find(g => g.status === stageToGroup[stage.value]);
+    updateProjectStatus(stage.value);
+  }
+  
+  dragOverColumn.value = null;
+};
+
+const handleDropOnGroup = (event: DragEvent, group: any) => {
+  event.preventDefault();
+  
+  if (!draggedProject.value) return;
+  
+  // Check if project is already in this group
+  const currentGroup = stageToGroup[draggedProject.value.status];
+  if (currentGroup !== group.status) {
+    // Show stage selection dialog
+    targetGroup.value = group;
+    selectedStage.value = '';
+    showStageDialog.value = true;
   }
   
   dragOverColumn.value = null;
@@ -381,24 +414,36 @@ const updateProjectStatus = async (newStatus: string) => {
       status: newStatus,
     });
     
-    // Add activity note if provided
     if (assignmentData.value.note) {
-      await projectStore.addActivity(draggedProject.value._id, {
-        type: 'note',
-        content: `Moved to ${formatStatus(newStatus)}: ${assignmentData.value.note}`,
-      });
+      try {
+        await projectStore.addActivity(draggedProject.value._id, {
+          type: 'note',
+          content: `Moved to ${formatStatus(newStatus)}: ${assignmentData.value.note}`,
+        });
+      } catch (activityError) {
+        console.warn('Failed to add activity note, but move succeeded:', activityError);
+      }
     }
     
-    // Trigger workflow automation
-    await triggerWorkflowAutomation(draggedProject.value, newStatus);
+    try {
+      await triggerWorkflowAutomation(draggedProject.value, newStatus);
+    } catch (workflowError) {
+      console.warn('Workflow automation failed, but move succeeded:', workflowError);
+    }
     
     $q.notify({
       type: 'positive',
       message: `Moved to ${formatStatus(newStatus)}`,
     });
     
-  } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to update status' });
+    await projectStore.fetchProjects();
+    
+  } catch (error: any) {
+    console.error('Move failed:', error);
+    $q.notify({ 
+      type: 'negative', 
+      message: error.response?.data?.error || error.message || 'Failed to update status'
+    });
   } finally {
     moving.value = false;
     draggedProject.value = null;
@@ -421,9 +466,7 @@ const cancelMove = () => {
   selectedStage.value = '';
 };
 
-// Workflow automation
 const triggerWorkflowAutomation = async (project: any, newStatus: string) => {
-  // Auto-create tasks when reaching certain stages
   const taskTriggers: Record<string, string[]> = {
     'contract_signed': ['Schedule site measure', 'Order materials', 'Schedule install'],
     'materials_ordered': ['Track delivery date', 'Notify customer of ETA'],
@@ -446,7 +489,6 @@ const triggerWorkflowAutomation = async (project: any, newStatus: string) => {
   }
 };
 
-// Helpers
 const getInitials = (user: any) => {
   if (!user) return '?';
   return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase();
@@ -506,35 +548,27 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Horizontal Pipeline Layout */
 .pipeline-board {
   display: flex;
-  gap: 12px;
+  flex-direction: row;
+  gap: 16px;
   overflow-x: auto;
   padding-bottom: 16px;
   min-height: calc(100vh - 200px);
   align-items: flex-start;
 }
 
-/* Group Column (collapsed or expanded group header) */
-.pipeline-column.is-group {
-  flex: 0 0 280px;
+/* Column (Group) */
+.pipeline-column {
+  flex: 0 0 300px;
   display: flex;
   flex-direction: column;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.2s ease;
   overflow: hidden;
-}
-
-/* Sub-stage Column (when expanded) */
-.pipeline-column.is-sub-stage {
-  flex: 0 0 240px;
-  display: flex;
-  flex-direction: column;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
 }
 
 .pipeline-column.drag-over {
@@ -546,24 +580,15 @@ onMounted(async () => {
 .group-header {
   padding: 16px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: filter 0.2s;
+  flex-shrink: 0;
 }
 
 .group-header:hover {
   filter: brightness(1.1);
 }
 
-/* Sub-stage Header */
-.substage-header {
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.3);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* Column Cards */
+/* Collapsed: Standard card list */
 .column-cards {
   flex: 1;
   padding: 12px;
@@ -571,30 +596,58 @@ onMounted(async () => {
   max-height: calc(100vh - 280px);
 }
 
-.substage-cards {
-  max-height: calc(100vh - 240px);
-}
-
-.column-loading {
+/* Expanded: Vertical sub-stages */
+.group-stages-vertical {
+  flex: 1;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  max-height: calc(100vh - 280px);
+}
+
+/* Individual Stage Section (when expanded) */
+.stage-section {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.stage-section.drag-over {
+  border-color: #9945FF;
+  background: rgba(153, 69, 255, 0.1);
+}
+
+/* Stage Header (mini) */
+.stage-header-mini {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
   align-items: center;
-  padding: 24px;
+  justify-content: space-between;
+  border-radius: 8px 8px 0 0;
+  font-size: 0.9rem;
 }
 
-.no-projects {
-  text-align: center;
-  padding: 24px;
-  color: rgba(0, 0, 0, 0.5);
+/* Stage Cards (mini) */
+.stage-cards-mini {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* Project Cards */
+/* Collapsed Project Cards */
 .project-card {
   background: rgba(255, 255, 255, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;
   padding: 12px;
-  margin-bottom: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   backdrop-filter: blur(8px);
@@ -610,21 +663,33 @@ onMounted(async () => {
   cursor: grabbing;
 }
 
-/* Scrollbar styling */
-.column-cards::-webkit-scrollbar {
-  width: 6px;
+/* Expanded Mini Project Cards */
+.project-card-mini {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
 }
 
-.column-cards::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-}
-
-.column-cards::-webkit-scrollbar-thumb {
+.project-card-mini:hover {
   background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
 }
 
+.project-card-mini:active {
+  cursor: grabbing;
+}
+
+/* No Projects State */
+.no-projects {
+  text-align: center;
+  padding: 16px;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+/* Scrollbar Styling */
 .pipeline-board::-webkit-scrollbar {
   height: 8px;
 }
@@ -637,5 +702,22 @@ onMounted(async () => {
 .pipeline-board::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.3);
   border-radius: 4px;
+}
+
+.column-cards::-webkit-scrollbar,
+.group-stages-vertical::-webkit-scrollbar {
+  width: 6px;
+}
+
+.column-cards::-webkit-scrollbar-track,
+.group-stages-vertical::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.column-cards::-webkit-scrollbar-thumb,
+.group-stages-vertical::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
 }
 </style>

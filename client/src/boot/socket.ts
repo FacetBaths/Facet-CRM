@@ -55,4 +55,18 @@ export function leaveProjectRoom(projectId: string) {
   }
 }
 
+export function joinUserRoom(userId: string) {
+  if (socket && socket.connected) {
+    socket.emit('join-user', userId);
+    console.log('Joined user room:', userId);
+  }
+}
+
+export function leaveUserRoom(userId: string) {
+  if (socket && socket.connected) {
+    socket.emit('leave-user', userId);
+    console.log('Left user room:', userId);
+  }
+}
+
 export { socket };

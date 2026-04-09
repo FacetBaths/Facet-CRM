@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/boot/axios';
-import { connectSocket, disconnectSocket } from '@/boot/socket';
+import { connectSocket, disconnectSocket, joinUserRoom } from '@/boot/socket';
 
 export type UserRole = 'admin' | 'bdc' | 'sales' | 'warehouse' | 'production' | 'contractor' | 'manager' | 'installer';
 
@@ -18,8 +18,10 @@ interface User {
   employeeId?: string;
   employmentType?: string;
   department?: string;
-  marketId?: string;
+  marketId?: string | { _id: string; name?: string; code?: string };
   teamIds?: string[];
+  commissionTier?: number;
+  status?: string;
   preferences?: {
     theme?: 'light' | 'dark' | 'auto';
     timezone?: string;
@@ -69,6 +71,8 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('user', JSON.stringify(userData));
     // Connect socket after successful auth
     connectSocket(authToken);
+    // Join user's personal room for notifications
+    joinUserRoom(userData._id);
   };
 
   const clearAuth = () => {
@@ -105,10 +109,13 @@ export const useAuthStore = defineStore('auth', () => {
     const storedToken = localStorage.getItem('token');
     if (storedUser && storedToken) {
       try {
-        user.value = JSON.parse(storedUser);
+        const parsedUser = JSON.parse(storedUser);
+        user.value = parsedUser;
         token.value = storedToken;
         // Reconnect socket on page reload if we have a token
         connectSocket(storedToken);
+        // Rejoin user room for notifications
+        joinUserRoom(parsedUser._id);
       } catch {
         clearAuth();
       }

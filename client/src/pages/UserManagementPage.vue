@@ -266,6 +266,35 @@
               <div class="col-12 col-sm-6">
                 <q-input v-model="userForm.hireDate" label="Hire Date" type="date" outlined />
               </div>
+              <div class="col-12 col-sm-6">
+                <q-select
+                  v-model="userForm.marketId"
+                  :options="markets"
+                  option-value="_id"
+                  option-label="name"
+                  label="Primary Market"
+                  outlined
+                  clearable
+                  emit-value
+                  map-options
+                  hint="User's assigned market"
+                />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-select
+                  v-model="userForm.markets"
+                  :options="markets"
+                  option-value="_id"
+                  option-label="name"
+                  label="Accessible Markets"
+                  outlined
+                  multiple
+                  use-chips
+                  emit-value
+                  map-options
+                  hint="Markets user can access/switch to"
+                />
+              </div>
             </div>
           </div>
 
@@ -425,6 +454,7 @@ const loading = ref(false);
 const saving = ref(false);
 const generatingId = ref(false);
 const users = ref([]);
+const markets = ref([]);
 
 // Dialog states
 const showUserDialog = ref(false);
@@ -455,6 +485,8 @@ const userForm = ref({
   department: '',
   status: 'active',
   hireDate: '',
+  marketId: '',
+  markets: [] as string[],
   roles: [] as UserRole[],
 });
 
@@ -605,6 +637,8 @@ const resetForm = () => {
     department: '',
     status: 'active',
     hireDate: '',
+    marketId: '',
+    markets: [],
     roles: [],
   };
 };
@@ -627,6 +661,8 @@ const editUser = (user: any) => {
     bio: user.bio || '',
     employeeId: user.employeeId || '',
     department: user.department || '',
+    marketId: user.marketId || '',
+    markets: user.markets || [],
     hireDate: user.hireDate ? user.hireDate.split('T')[0] : '',
   };
   showUserDialog.value = true;
@@ -656,6 +692,15 @@ const fetchUsers = async () => {
     $q.notify({ type: 'negative', message: 'Failed to load users' });
   } finally {
     loading.value = false;
+  }
+};
+
+const fetchMarkets = async () => {
+  try {
+    const { data } = await api.get('/company/markets');
+    markets.value = data;
+  } catch (error) {
+    console.error('Failed to load markets:', error);
   }
 };
 
@@ -695,6 +740,8 @@ const saveUser = async () => {
       department: userForm.value.department,
       status: userForm.value.status,
       hireDate: userForm.value.hireDate,
+      marketId: userForm.value.marketId,
+      markets: userForm.value.markets,
       roles: userForm.value.roles,
     };
 
@@ -753,8 +800,7 @@ const generateEmployeeId = async () => {
   try {
     // Get user's market and primary role
     const primaryRole = userForm.value.roles[0];
-    const user = users.value.find(u => u._id === userForm.value._id);
-    const marketId = user?.marketId || 'default';
+    const marketId = userForm.value.marketId || '';
     
     // Call API to preview (which will reserve the next sequence)
     const { data } = await api.post('/company/preview-employee-id', {
@@ -781,6 +827,7 @@ const generateEmployeeId = async () => {
 
 onMounted(() => {
   fetchUsers();
+  fetchMarkets();
 });
 </script>
 

@@ -55,6 +55,30 @@
           </div>
         </div>
 
+        <!-- Assignment Info -->
+        <div class="glass-card q-pa-md q-mb-md">
+          <div class="text-subtitle2 text-grey-7 q-mb-sm row items-center justify-between">
+            <span>Assignment</span>
+            <q-btn flat round dense icon="edit" size="sm" @click="openAssignmentDialog" />
+          </div>
+          
+          <div class="q-mb-sm">
+            <div class="text-caption text-grey-7">Sales Rep</div>
+            <div v-if="project.assignedSalesId" class="text-body2">
+              {{ project.assignedSalesId.firstName }} {{ project.assignedSalesId.lastName }}
+            </div>
+            <div v-else class="text-body2 text-grey-6">Not assigned</div>
+          </div>
+          
+          <div>
+            <div class="text-caption text-grey-7">BDC Rep</div>
+            <div v-if="project.commission?.bdcRepId" class="text-body2">
+              {{ project.commission.bdcRepId.firstName }} {{ project.commission.bdcRepId.lastName }}
+            </div>
+            <div v-else class="text-body2 text-grey-6">Not assigned</div>
+          </div>
+        </div>
+
         <!-- Contract Info -->
         <div class="glass-card q-pa-md q-mb-md">
           <div class="text-subtitle2 text-grey-7 q-mb-sm">Contract</div>
@@ -142,26 +166,32 @@
               round
               icon="refresh"
               size="sm"
-              @click="calculateCommission"
+              @click="showCommissionDialog = true"
               :loading="calculating"
             />
           </div>
 
-          <!-- Sales Commission -->
-          <div v-if="project.commission.salesRepId" class="q-mb-sm">
-            <div class="row justify-between items-center">
+          <!-- Sales Commission (Array) -->
+          <div v-if="project.commission.salesReps?.length" class="q-mb-sm">
+            <div class="text-caption text-grey-7 q-mb-xs">Sales Reps</div>
+            <div
+              v-for="(rep, index) in project.commission.salesReps"
+              :key="index"
+              class="row justify-between items-center q-mb-xs"
+            >
               <div>
-                <div class="text-caption text-grey-7">Sales Rep</div>
                 <div class="text-body2">
-                  ${{ project.commission.salesAmount?.toLocaleString() }}
+                  {{ rep.userId?.firstName }} {{ rep.userId?.lastName }} 
+                  <span class="text-grey-6">({{ rep.splitPercent }}%)</span>
                 </div>
+                <div class="text-caption text-primary">${{ rep.amount?.toLocaleString() }}</div>
               </div>
               <q-btn
-                v-if="!project.commission.salesPaid"
+                v-if="!rep.paid"
                 label="Pay"
                 color="positive"
                 size="sm"
-                @click="markCommissionPaid('sales')"
+                @click="markSalesRepPaid(rep.userId?._id)"
               />
               <q-badge v-else color="positive">Paid</q-badge>
             </div>
@@ -197,7 +227,7 @@
             color="primary"
             icon="calculate"
             label="Calculate Commission"
-            @click="calculateCommission"
+            @click="showCommissionDialog = true"
             :loading="calculating"
             class="full-width"
           />
@@ -237,20 +267,24 @@
               class="activity-item q-pa-md q-mb-sm"
               :class="`activity-${activity.type}`"
             >
-              <div class="row items-start justify-between">
-                <div class="row items-center q-gutter-sm">
-                  <q-icon
-                    :name="activityIcon(activity.type)"
-                    :color="activityColor(activity.type)"
-                    size="24px"
-                  />
-                  <div>
-                    <div class="text-weight-medium">{{ activity.content }}</div>
-                    <div class="text-caption text-grey-7">
-                      {{ activity.userId?.firstName }}
-                      {{ activity.userId?.lastName }} •
-                      {{ formatDate(activity.timestamp) }}
-                    </div>
+              <div class="row items-start">
+                <user-avatar
+                  :user="activity.userId"
+                  size="sm"
+                  class="q-mr-md cursor-pointer"
+                  @click="showUserDetail(activity.userId)"
+                />
+                <div class="col">
+                  <div class="row items-center q-gutter-sm q-mb-xs">
+                    <q-icon
+                      :name="activityIcon(activity.type)"
+                      :color="activityColor(activity.type)"
+                      size="18px"
+                    />
+                    <span class="text-weight-medium">{{ activity.content }}</span>
+                  </div>
+                  <div class="text-caption text-grey-6" :title="formatFullDate(activity.timestamp)">
+                    {{ formatRelativeTime(activity.timestamp) }}
                   </div>
                 </div>
               </div>
@@ -719,6 +753,259 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- User Detail Modal -->
+    <q-dialog v-model="showUserDetailModal">
+      <q-card style="min-width: 400px; max-width: 500px" class="glass-card" v-if="selectedUser">
+        <q-card-section class="text-center q-pt-lg">
+          <user-avatar
+            :user="selectedUser"
+            size="xl"
+            :clickable="false"
+            :show-tooltip="false"
+            class="q-mb-md"
+          />
+          
+          <div class="text-h5 text-weight-bold">
+            {{ selectedUser.firstName }} {{ selectedUser.lastName }}
+          </div>
+          
+          <div class="text-caption text-grey-7 q-mb-sm" v-if="selectedUser.employeeId">
+            {{ selectedUser.employeeId }}
+          </div>
+          
+          <div class="q-mb-md">
+            <q-badge
+              v-for="role in selectedUser.roles"
+              :key="role"
+              :color="roleColor(role)"
+              class="q-mr-xs"
+            >
+              {{ formatRole(role) }}
+            </q-badge>
+          </div>
+        </q-card-section>
+
+        <q-card-section>
+          <q-list dense>
+            <q-item v-if="selectedUser.email">
+              <q-item-section avatar>
+                <q-icon name="email" color="primary" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ selectedUser.email }}</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-btn flat round icon="content_copy" size="sm" @click="copyText(selectedUser.email)" />
+              </q-item-section>
+            </q-item>
+            
+            <q-item v-if="selectedUser.phone">
+              <q-item-section avatar>
+                <q-icon name="phone" color="positive" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ selectedUser.phone }}</q-item-label>
+                <q-item-label v-if="selectedUser.phoneExtension" caption>ext. {{ selectedUser.phoneExtension }}</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-btn flat round icon="content_copy" size="sm" @click="copyText(selectedUser.phone)" />
+              </q-item-section>
+            </q-item>
+            
+            <q-item v-if="selectedUser.department">
+              <q-item-section avatar>
+                <q-icon name="business" color="accent" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ selectedUser.department }}</q-item-label>
+              </q-item-section>
+            </q-item>
+            
+            <q-item v-if="selectedUser.marketId?.name || selectedUser.marketId?.code || selectedUser.marketId">
+              <q-item-section avatar>
+                <q-icon name="place" color="warning" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ selectedUser.marketId?.name || selectedUser.marketId?.code || 'Market ' + selectedUser.marketId }}</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item v-if="selectedUser.employmentType">
+              <q-item-section avatar>
+                <q-icon name="work" color="info" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ formatEmploymentType(selectedUser.employmentType) }}</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item v-if="selectedUser.commissionTier">
+              <q-item-section avatar>
+                <q-icon name="attach_money" color="positive" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>Commission Tier {{ selectedUser.commissionTier }}</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item v-if="selectedUser.bio">
+              <q-item-section>
+                <q-item-label class="text-grey-7" style="white-space: pre-wrap">{{ selectedUser.bio }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat label="Close" v-close-popup />
+          <q-btn
+            v-if="selectedUser._id !== authStore.user?._id"
+            color="primary"
+            icon="chat"
+            label="Ping"
+            @click="showUserDetailModal = false; $q.notify({type: 'info', message: 'Ping feature coming soon'})"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Commission Calculation Dialog -->
+    <q-dialog v-model="showCommissionDialog" persistent>
+      <q-card style="min-width: 450px" class="glass-card">
+        <q-card-section>
+          <div class="text-h6">Calculate Commission</div>
+          <div class="text-caption text-grey-7">
+            Contract Amount: ${{ project.contractAmount?.toLocaleString() }}
+          </div>
+        </q-card-section>
+
+        <q-card-section>
+          <!-- Flat Rate Toggle -->
+          <q-toggle
+            v-model="useFlatRate"
+            label="Use flat rate ($400) instead of percentage (10%)"
+            color="primary"
+          />
+
+          <q-separator class="q-my-md" />
+
+          <!-- Sales Rep Selection -->
+          <div class="text-subtitle2 q-mb-sm">Select Sales Representatives *</div>
+          
+          <q-list dense>
+            <q-item
+              v-for="user in userStore.users.filter(u => u.roles?.includes('sales'))"
+              :key="user._id"
+              tag="label"
+            >
+              <q-item-section avatar>
+                <q-checkbox
+                  v-model="selectedSalesReps"
+                  :val="user._id"
+                />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ user.firstName }} {{ user.lastName }}</q-item-label>
+              </q-item-section>
+              <q-item-section side v-if="selectedSalesReps.includes(user._id)">
+                <q-input
+                  v-model.number="commissionSplits[user._id]"
+                  type="number"
+                  suffix="%"
+                  dense
+                  outlined
+                  style="width: 80px"
+                  :rules="[val => val >= 0 && val <= 100 || '0-100']"
+                />
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+          <div v-if="selectedSalesReps.length > 0" class="q-mt-md">
+            <div class="text-caption text-grey-7">
+              Split Total: {{ selectedSalesReps.reduce((sum, id) => sum + (commissionSplits[id] || (100/selectedSalesReps.length)), 0) }}%
+            </div>
+            <div class="text-caption text-grey-7">
+              {{ useFlatRate ? 'Flat Rate: $400' : 'Base: 10% of $' + project.contractAmount?.toLocaleString() }}
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup @click="selectedSalesReps = []; commissionSplits = {}" />
+          <q-btn
+            color="primary"
+            label="Calculate"
+            icon="calculate"
+            @click="calculateCommission"
+            :loading="calculating"
+            :disable="selectedSalesReps.length === 0"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Assignment Dialog -->
+    <q-dialog v-model="showAssignmentDialog" persistent>
+      <q-card style="min-width: 400px" class="glass-card">
+        <q-card-section>
+          <div class="text-h6">Edit Assignment</div>
+        </q-card-section>
+
+        <q-card-section class="q-gutter-md">
+          <q-select
+            v-model="assignmentData.assignedSalesId"
+            :options="userStore.users.filter(u => u.roles?.includes('sales'))"
+            option-value="_id"
+            :option-label="opt => opt ? `${opt.firstName} ${opt.lastName}` : ''"
+            label="Sales Representative"
+            outlined
+            clearable
+            emit-value
+            map-options
+          >
+            <template v-slot:option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.firstName }} {{ scope.opt.lastName }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+
+          <q-select
+            v-model="assignmentData.bdcRepId"
+            :options="userStore.users.filter(u => u.roles?.includes('bdc'))"
+            option-value="_id"
+            :option-label="opt => opt ? `${opt.firstName} ${opt.lastName}` : ''"
+            label="BDC Representative"
+            outlined
+            clearable
+            emit-value
+            map-options
+          >
+            <template v-slot:option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.firstName }} {{ scope.opt.lastName }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn
+            color="primary"
+            label="Save"
+            @click="saveAssignment"
+            :loading="savingAssignment"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 
   <!-- Loading State -->
@@ -747,6 +1034,7 @@ import { useRoute } from "vue-router";
 import { useProjectStore } from "@/stores/projects";
 import { useUserStore } from "@/stores/users";
 import { useAuthStore } from "@/stores/auth";
+import UserAvatar from "@/components/UserAvatar.vue";
 import {
   socket,
   connectSocket,
@@ -775,6 +1063,19 @@ const showChangeOrder = ref(false);
 const showEditPayment = ref(false);
 const showVoidPayment = ref(false);
 const showStatusChange = ref(false);
+const showCommissionDialog = ref(false);
+const showAssignmentDialog = ref(false);
+
+// Assignment
+const assignmentData = ref({
+  assignedSalesId: "",
+  bdcRepId: "",
+});
+
+// Commission calculation
+const selectedSalesReps = ref<string[]>([]);
+const commissionSplits = ref<Record<string, number>>({});
+const useFlatRate = ref(false);
 
 // Form data
 const newNote = ref("");
@@ -920,6 +1221,36 @@ const formatDate = (date: string) => {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+  });
+};
+
+const formatFullDate = (date: string) => {
+  return new Date(date).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatRelativeTime = (date: string) => {
+  const d = new Date(date);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
   });
 };
 
@@ -1087,14 +1418,43 @@ const confirmVoidPayment = async () => {
 const calculating = ref(false);
 
 const calculateCommission = async () => {
+  if (selectedSalesReps.value.length === 0) {
+    $q.notify({ type: "negative", message: "Please select at least one sales representative" });
+    return;
+  }
+
   calculating.value = true;
   try {
-    await api.post(`/projects/${route.params.id}/calculate-commission`);
-    $q.notify({ type: "positive", message: "Commission calculated" });
+    const splitPercentages = selectedSalesReps.value.map(id => commissionSplits.value[id] || (100 / selectedSalesReps.value.length));
+    
+    const { data } = await api.post(`/projects/${route.params.id}/calculate-commission`, {
+      salesRepIds: selectedSalesReps.value,
+      splitPercentages,
+      useFlatRate: useFlatRate.value,
+    });
+    
+    $q.notify({ type: "positive", message: "Commission calculated successfully" });
+    
+    // Show calculated amounts
+    const totalSales = data.salesReps?.reduce((sum: number, r: any) => sum + (r.amount || 0), 0) || 0;
+    const bdcAmount = data.bdcAmount || 0;
+    
+    if (totalSales > 0 || bdcAmount > 0) {
+      $q.notify({
+        type: "info",
+        message: `Sales: $${totalSales.toLocaleString()} | BDC: $${bdcAmount.toLocaleString()}`,
+        timeout: 5000,
+      });
+    }
+    
     // Refresh project to get updated commission data
     await projectStore.fetchProject(route.params.id as string);
-  } catch (error) {
-    $q.notify({ type: "negative", message: "Failed to calculate commission" });
+    showCommissionDialog.value = false;
+    selectedSalesReps.value = [];
+    commissionSplits.value = {};
+  } catch (error: any) {
+    const message = error.response?.data?.error || "Failed to calculate commission";
+    $q.notify({ type: "negative", message });
   } finally {
     calculating.value = false;
   }
@@ -1110,6 +1470,41 @@ const markCommissionPaid = async (type: "sales" | "bdc") => {
       type: "negative",
       message: "Failed to mark commission as paid",
     });
+  }
+};
+
+// Assignment functions
+const savingAssignment = ref(false);
+
+const openAssignmentDialog = () => {
+  // Initialize with current values
+  assignmentData.value.assignedSalesId = project.value.assignedSalesId?._id || "";
+  assignmentData.value.bdcRepId = project.value.commission?.bdcRepId?._id || "";
+  showAssignmentDialog.value = true;
+};
+
+const saveAssignment = async () => {
+  savingAssignment.value = true;
+  try {
+    const updateData: any = {};
+    if (assignmentData.value.assignedSalesId) {
+      updateData.assignedSalesId = assignmentData.value.assignedSalesId;
+    }
+    if (assignmentData.value.bdcRepId) {
+      // bdcRepId is nested in commission object
+      updateData.commission = {
+        ...(project.value.commission || {}),
+        bdcRepId: assignmentData.value.bdcRepId,
+      };
+    }
+    
+    await projectStore.updateProject(route.params.id as string, updateData);
+    $q.notify({ type: "positive", message: "Assignments updated" });
+    showAssignmentDialog.value = false;
+  } catch (error) {
+    $q.notify({ type: "negative", message: "Failed to update assignments" });
+  } finally {
+    savingAssignment.value = false;
   }
 };
 
@@ -1345,6 +1740,86 @@ watch(
     }
   },
 );
+
+const showUserDetailModal = ref(false);
+const selectedUser = ref<any>(null);
+
+const showUserDetail = async (user: any) => {
+  if (user && (!user.phone || !user.department)) {
+    try {
+      const { data } = await api.get(`/users/${user._id || user}`);
+      selectedUser.value = data;
+    } catch (error) {
+      selectedUser.value = user;
+    }
+  } else {
+    selectedUser.value = user;
+  }
+  showUserDetailModal.value = true;
+};
+
+const formatRole = (role: string) => {
+  const roles: Record<string, string> = {
+    admin: "Admin",
+    bdc: "BDC",
+    sales: "Sales",
+    warehouse: "Warehouse",
+    production: "Production",
+    contractor: "Contractor",
+    manager: "Manager",
+    installer: "Installer",
+  };
+  return roles[role] || role;
+};
+
+const roleColor = (role: string) => {
+  const colors: Record<string, string> = {
+    admin: "negative",
+    bdc: "accent",
+    sales: "primary",
+    warehouse: "orange",
+    production: "warning",
+    contractor: "info",
+    manager: "purple",
+    installer: "teal",
+  };
+  return colors[role] || "grey";
+};
+
+const copyText = (text: string) => {
+  navigator.clipboard.writeText(text);
+  $q.notify({
+    type: "positive",
+    message: "Copied to clipboard",
+    timeout: 1500,
+  });
+};
+
+const formatEmploymentType = (type?: string) => {
+  const types: Record<string, string> = {
+    full_time: "Full Time",
+    part_time: "Part Time",
+    contractor: "Contractor",
+    intern: "Intern",
+  };
+  return types[type || ""] || type || "Unknown";
+};
+
+const markSalesRepPaid = async (userId: string) => {
+  try {
+    await api.post(`/projects/${route.params.id}/commission/pay`, { 
+      type: 'sales',
+      userId 
+    });
+    $q.notify({ type: "positive", message: "Commission marked as paid" });
+    await projectStore.fetchProject(route.params.id as string);
+  } catch (error) {
+    $q.notify({
+      type: "negative",
+      message: "Failed to mark commission as paid",
+    });
+  }
+};
 </script>
 
 <style scoped>
