@@ -2,19 +2,11 @@
   <q-page class="q-pa-md">
     <div class="row items-center justify-between q-mb-md">
       <div class="text-h5">Customers</div>
-      <q-btn color="primary" icon="add" label="New Customer" @click="showNewCustomerDialog = true" />
+      <q-btn v-if="canCreateCustomer" color="primary" icon="add" label="New Customer" @click="showNewCustomerDialog = true" />
     </div>
 
-    <q-card flat bordered>
-      <q-table
-        :rows="customerStore.customers"
-        :columns="columns"
-        row-key="_id"
-        :loading="customerStore.isLoading"
-        flat
-        dense
-        @row-click="(evt, row) => $router.push(`/customers/${row._id}`)"
-      >
+    <q-card class="glass-card">
+      <q-table :rows="customerStore.customers" :columns="columns" row-key="_id" :loading="customerStore.isLoading" dense @row-click="onRowClick" >
         <template v-slot:body-cell-name="{ row }">
           <q-td>
             {{ row.firstName }} {{ row.lastName }}
@@ -30,7 +22,7 @@
 
     <!-- New Customer Dialog -->
     <q-dialog v-model="showNewCustomerDialog" persistent>
-      <q-card style="min-width: 450px">
+      <q-card style="min-width: 450px" class="glass-card">
         <q-card-section>
           <div class="text-h6">New Customer</div>
         </q-card-section>
@@ -76,14 +68,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCustomerStore } from '@/stores/customers';
 import { useQuasar } from 'quasar';
+import { useUserStore } from '@/stores/users';
 
 const $q = useQuasar();
 const router = useRouter();
 const customerStore = useCustomerStore();
+const userStore = useUserStore();
+
+const onRowClick = (evt, row) => router.push(`/customers/${row._id}`);
+
+const canCreateCustomer = computed(() => userStore.user?.roles?.some(role => ['admin', 'manager', 'sales', 'bdc'].includes(role)) || false);
 
 const showNewCustomerDialog = ref(false);
 const creating = ref(false);
