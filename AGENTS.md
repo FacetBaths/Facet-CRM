@@ -22,7 +22,7 @@ Facet CRM is an internal full-stack CRM + POS replacement for Facet Renovations,
 | Backend | Node.js + Express + TypeScript |
 | Database | MongoDB + Mongoose |
 | Realtime | Socket.io |
-| Auth | JWT (24h expiry, stored in localStorage) |
+| Auth | JWT (7d expiry, stored in localStorage) |
 | HTTP Client | Axios |
 | Security | Helmet.js, bcryptjs, rate limiting (100 req/15min) |
 
@@ -64,18 +64,34 @@ cd server && npm install && npm run dev
 cd client && npm install && npm run dev
 ```
 
-**Required env — server `.env`:**
+**Required env — copy `.env.example` to `.env` and fill in values:**
+```bash
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+```
+
+**server `.env.example`:**
 ```
 PORT=3000
 MONGODB_URI=mongodb://localhost:27017/facet-crm
-JWT_SECRET=<min 32 chars>
+JWT_SECRET=replace-with-a-random-string-min-32-chars
 CLIENT_URL=http://localhost:5173
 ```
 
-**Required env — client `.env`:**
+**client `.env.example`:**
 ```
 VITE_API_URL=http://localhost:3000/api
 VITE_SOCKET_URL=http://localhost:3000
+```
+
+**Validate your changes before committing:**
+```bash
+# TypeScript build (server) — must exit 0
+cd server && npm run build
+
+# Lint (both workspaces)
+cd server && npm run lint
+cd client && npm run lint
 ```
 
 ---
@@ -141,7 +157,31 @@ const isAdmin = user.roles.includes('admin');
 const isSales = user.roles.includes('sales');
 ```
 
-**Backend:** `filterByUserRole` middleware auto-filters list endpoints. `requireRole(...roles)` guards sensitive endpoints. Always preserve this — do not bypass.
+**Backend `AuthRequest` pattern** — every route handler must use `AuthRequest` (not `Request`) so `req.user` is typed:
+```typescript
+import { AuthRequest, requireRole } from '../middleware/auth';
+
+router.get('/', async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id; // typed, safe
+});
+```
+
+**`filterByUserRole` pattern** — all list and detail endpoints must filter by role. This is **not** a shared middleware file; it is defined as an inline async middleware function at the top of each route file. Copy the pattern from `server/src/routes/projects.ts` or `customers.ts` when adding new list endpoints:
+```typescript
+const filterByUserRole = async (req: AuthRequest, res: Response, next: Function) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  if (req.user.roles?.includes('admin')) return next(); // admins see all
+  (req as any).roleFilter = { /* scope to req.user._id */ };
+  next();
+};
+
+router.get('/', filterByUserRole, async (req: AuthRequest, res: Response) => {
+  const query = { ...(req as any).roleFilter };
+  // ...
+});
+```
+
+`requireRole(...roles)` guards write/admin-only endpoints. Always preserve both patterns — do not bypass.
 
 ---
 
@@ -257,6 +297,7 @@ Compatibility checklist:
 | `docs/TECHNICAL_SPECS.md` | Full schema definitions, architecture, design decisions |
 | `docs/API_REFERENCE.md` | Every endpoint: method, auth, request, response, errors |
 | `docs/USER_GUIDE.md` | Feature descriptions for non-technical stakeholders |
+| `SCHEMA_AUDIT.md` | Field-level frontend compatibility audit — check before adding/removing fields |
 | `AGENTS.md` | Agent context, conventions, and current state |
 | `PROJECT_ROADMAP.md` | Completion status and priority order |
 
@@ -284,9 +325,11 @@ Compatibility checklist:
 
 ### Backend
 - All routes require auth middleware unless explicitly public
+- Always use `AuthRequest` (not `Request`) — imported from `../middleware/auth`
 - Always set `createdBy` / `updatedBy` from `req.user._id` on mutations
 - Activity log entries must include `userId` and `timestamp`
-- Apply `filterByUserRole` to all list and detail endpoints
+- Apply `filterByUserRole` inline middleware to all list and detail endpoints (see pattern in RBAC section above)
+- After making changes, run `cd server && npm run build` to confirm TypeScript compiles
 
 ### API Conventions
 - Auth header: `Authorization: Bearer <token>`
