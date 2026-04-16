@@ -7,7 +7,7 @@ Facet CRM is an internal full-stack CRM + POS replacement for Facet Renovations,
 ## Git Workflow
 
 - **Never commit directly to `master`**
-- Always create a feature branch before making changes: `feat/<description>` or `fix/<description>`
+- Always create a feature branch before making changes: `omc-feat/<description>` or `omc-fix/<description>`
 - Commit frequently with descriptive messages
 - Do not open PRs or push to `master` without explicit instruction from the user
 - Include meaningful commit messages that explain *why*, not just *what*
@@ -213,6 +213,58 @@ socket.join(`project:${projectId}`)
 7. **POS Frontend** — retail checkout for Facet Refinery
 8. **PnL Reporting** — per-project profit/loss
 9. **File Uploads** — attach contracts/photos (S3 or local)
+
+---
+
+## Developer Documentation
+
+Agents are responsible for **creating and maintaining developer docs** as work progresses. Do not defer this — docs must be updated in the same commit as the code change.
+
+### What to document
+
+**Schema changes** — Any time a field is added, renamed, removed, or its type changes on a Mongoose model, the doc must include a change impact table:
+
+```
+Field added: Project.marketId (ObjectId, ref: Market)
+
+Compatibility checklist:
+- server/src/models/Project.ts       → add field to IProject interface + schema
+- server/src/routes/projects.ts      → add to populate() calls where needed
+- server/src/middleware/auth.ts      → update filterByUserRole if access logic affected
+- docs/TECHNICAL_SPECS.md           → update schema definition
+- docs/API_REFERENCE.md             → update request/response examples
+- client/src/stores/projectStore.ts  → update TypeScript interface
+- client/src/pages/ProjectDetail*    → update UI if field is user-visible
+```
+
+**New API endpoints** — Every new route must be documented in `docs/API_REFERENCE.md` with:
+- Method + path
+- Auth requirement and minimum role
+- Request body shape (with field types)
+- Response shape (with field types)
+- Error responses
+
+**New Socket.io events** — Document in `docs/TECHNICAL_SPECS.md` under the Socket.io section with event name, payload shape, and which page/component should listen.
+
+**Business logic** — Any non-obvious calculation (commission splits, milestone triggers, payment plan logic) must have an inline comment block explaining the *why*, not just the *what*.
+
+**Cross-cutting changes** — If a change touches both frontend and backend (e.g. a new field flows from DB → API → Pinia store → UI), add a one-paragraph "Data flow" note in the relevant doc.
+
+### Where docs live
+
+| Document | Purpose |
+|----------|---------|
+| `docs/TECHNICAL_SPECS.md` | Full schema definitions, architecture, design decisions |
+| `docs/API_REFERENCE.md` | Every endpoint: method, auth, request, response, errors |
+| `docs/USER_GUIDE.md` | Feature descriptions for non-technical stakeholders |
+| `AGENTS.md` | Agent context, conventions, and current state |
+| `PROJECT_ROADMAP.md` | Completion status and priority order |
+
+### Style rules
+- **Concise over comprehensive** — one clear sentence beats three vague ones
+- Use concrete examples, not abstract descriptions
+- Keep `TECHNICAL_SPECS.md` schema blocks in sync with actual Mongoose models
+- After any significant feature addition, update the **Current State** section in this file
 
 ---
 
