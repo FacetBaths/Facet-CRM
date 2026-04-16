@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { body } from 'express-validator';
 import { Product } from '../models/Product';
 import { AuthRequest } from '../middleware/auth';
@@ -56,7 +56,7 @@ router.post(
     body('category').isIn(['materials', 'labor', 'service', 'package', 'retail']),
     body('type').isIn(['physical', 'service', 'package']),
   ],
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const product = new Product(req.body);
       await product.save();

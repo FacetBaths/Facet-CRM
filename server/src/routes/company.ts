@@ -9,7 +9,7 @@ const router = Router();
 router.use(requireRole('admin'));
 
 // Get company settings
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', async (_req: AuthRequest, res) => {
   try {
     const settings = await CompanySettings.getSettings();
     res.json(settings);
@@ -114,7 +114,7 @@ router.post('/preview-employee-id', async (req: AuthRequest, res) => {
 });
 
 // Get all markets
-router.get('/markets', async (req: AuthRequest, res) => {
+router.get('/markets', async (_req: AuthRequest, res) => {
   try {
     const markets = await Market.find()
       .populate('managerId', 'firstName lastName email')

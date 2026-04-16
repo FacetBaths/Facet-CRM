@@ -1,4 +1,9 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document, Model, Types } from 'mongoose';
+
+interface ICompanySettingsModel extends Model<ICompanySettings> {
+  getSettings(): Promise<ICompanySettings & Document>;
+  generateEmployeeId(marketId: string, role: string): Promise<string | null>;
+}
 
 // Company-wide configuration
 export interface ICompanySettings extends Document {
@@ -97,7 +102,7 @@ CompanySettingsSchema.statics.generateEmployeeId = async function(
   marketId: string,
   role: string
 ): Promise<string | null> {
-  const settings = await this.getSettings();
+  const settings = await (this as unknown as ICompanySettingsModel).getSettings();
   
   if (!settings.employeeIdConfig.enabled) {
     return null;
@@ -119,4 +124,4 @@ CompanySettingsSchema.statics.generateEmployeeId = async function(
   return `${marketCode}-${roleCode}${sequenceStr}`;
 };
 
-export const CompanySettings = mongoose.model<ICompanySettings>('CompanySettings', CompanySettingsSchema);
+export const CompanySettings = mongoose.model<ICompanySettings, ICompanySettingsModel>('CompanySettings', CompanySettingsSchema);

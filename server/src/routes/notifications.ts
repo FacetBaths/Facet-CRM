@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { AuthRequest, requireRole } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
 import { io } from '../index';
 
 const router = Router();
@@ -10,7 +10,7 @@ const notifications: any[] = [];
 // Send a ping/message to another user
 router.post('/ping', async (req: AuthRequest, res) => {
   try {
-    const { userId, message, fromUserId } = req.body;
+    const { userId, message } = req.body;
     
     if (!userId || !message?.trim()) {
       res.status(400).json({ error: 'Missing userId or message' });

@@ -121,7 +121,7 @@ router.post(
     body('lastName').trim().notEmpty(),
     body('contacts').isArray(),
   ],
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
