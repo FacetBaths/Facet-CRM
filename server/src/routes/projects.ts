@@ -154,7 +154,7 @@ router.post(
     body('address.state').notEmpty(),
     body('address.zip').notEmpty(),
   ],
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -220,7 +220,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
     // Handle commission subdocument specially - merge instead of replace
     const updateData: any = { ...req.body };
     if (updateData.commission && oldProject.commission) {
-      updateData.commission = { ...oldProject.commission.toObject(), ...updateData.commission };
+      updateData.commission = { ...(oldProject.commission as any).toObject(), ...updateData.commission };
     }
     
     const project = await Project.findByIdAndUpdate(
@@ -480,7 +480,7 @@ router.put('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     
     io.to(`project:${req.params.id}`).emit('project:payment', { amount: project.payments[paymentIndex].amount, totalPaid, percentPaid });
     
-    res.json(project.payments[paymentIndex].toObject());
+    res.json((project.payments[paymentIndex] as any).toObject());
   } catch (error) {
     console.error('Edit payment error:', error);
     res.status(500).json({ error: 'Failed to update payment', details: (error as Error).message });
@@ -536,7 +536,7 @@ router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     
     io.to(`project:${req.params.id}`).emit('project:payment', { amount: 0, totalPaid, percentPaid, voided: true });
     
-    res.json({ message: 'Payment voided', payment: project.payments[paymentIndex].toObject() });
+    res.json({ message: 'Payment voided', payment: (project.payments[paymentIndex] as any).toObject() });
   } catch (error) {
     console.error('Void payment error:', error);
     res.status(500).json({ error: 'Failed to void payment', details: (error as Error).message });
@@ -654,7 +654,6 @@ router.put('/:id/change-orders/:coId', requireRole('admin'), async (req: AuthReq
 // Calculate commission with audit
 router.post('/:id/calculate-commission', requireRole('admin'), async (req: AuthRequest, res) => {
   try {
-    const { User } = await import('../models/User');
     const { salesRepIds = [], useFlatRate = false, splitPercentages = [] } = req.body;
     
     const project = await Project.findById(req.params.id);
@@ -723,7 +722,7 @@ router.post('/:id/calculate-commission', requireRole('admin'), async (req: AuthR
     // Update project with calculated commission
     // Handle case where commission is undefined (Mongoose subdocument) or plain object
     const existingCommission = project.commission 
-      ? (typeof project.commission.toObject === 'function' ? project.commission.toObject() : project.commission)
+      ? (typeof (project.commission as any).toObject === 'function' ? (project.commission as any).toObject() : project.commission)
       : {};
     project.commission = { ...existingCommission, ...commissionData };
     project.updatedBy = req.user?._id;

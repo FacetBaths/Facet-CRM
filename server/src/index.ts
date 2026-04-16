@@ -62,13 +62,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Make io accessible to routes
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   (req as any).io = io;
   next();
 });
 
 // Health check
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -117,7 +117,7 @@ io.on('connection', (socket) => {
 });
 
 // Error handler
-app.use((err: Error, req: Request, res: Response, next: any) => {
+app.use((err: Error, _req: Request, res: Response, _next: any) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Internal server error' });
 });

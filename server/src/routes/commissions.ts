@@ -31,8 +31,8 @@ router.get('/dashboard', async (req: AuthRequest, res) => {
     
     // Get all commission-eligible users
     const users = await User.find({
-      isActive: true,
-      role: { $in: ['sales', 'design_consultant', 'bdc', 'admin'] },
+      status: 'active',
+      roles: { $in: ['sales', 'design_consultant', 'bdc', 'admin'] },
     });
     
     // Get all projects with commission data in date range
@@ -101,7 +101,7 @@ router.get('/dashboard', async (req: AuthRequest, res) => {
         }
         
         // Admin commission (calculated on every project)
-        if (user.role === 'admin') {
+        if (user.roles?.includes('admin')) {
           const adminRate = isOwner ? COMMISSION_RULES.admin.owner : COMMISSION_RULES.admin.standard;
           const contractAmount = project.contractAmount || 0;
           const amount = contractAmount * (adminRate / 100);
@@ -117,8 +117,8 @@ router.get('/dashboard', async (req: AuthRequest, res) => {
       return {
         userId: user._id,
         name: `${user.firstName} ${user.lastName}`,
-        role: user.role,
-        isOwner: user.role === 'admin' ? isOwner : undefined,
+        roles: user.roles,
+        isOwner: user.roles?.includes('admin') ? isOwner : undefined,
         commissionSettings: user.commissionSettings,
         earned,
         paid,
@@ -248,7 +248,7 @@ router.get('/user/:userId', async (req: AuthRequest, res) => {
       user: {
         id: user._id,
         name: `${user.firstName} ${user.lastName}`,
-        role: user.role,
+        roles: user.roles,
       },
       commissions: filteredCommissions,
       totals,
@@ -281,7 +281,7 @@ router.put('/settings/:userId', async (req: AuthRequest, res) => {
 });
 
 // Get global commission rules
-router.get('/rules', async (req: AuthRequest, res) => {
+router.get('/rules', async (_req: AuthRequest, res) => {
   res.json(COMMISSION_RULES);
 });
 
@@ -290,7 +290,7 @@ router.put('/rules', async (req: AuthRequest, res) => {
   try {
     // Check if admin
     const user = await User.findById(req.user?._id);
-    if (!user || user.role !== 'admin') {
+    if (!user || !user.roles?.includes('admin')) {
       res.status(403).json({ error: 'Admin access required' });
       return;
     }

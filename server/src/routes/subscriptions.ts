@@ -158,7 +158,7 @@ router.post('/:id/services', async (req: AuthRequest, res) => {
 });
 
 // Get upcoming renewals (for dashboard)
-router.get('/dashboard/upcoming', async (req: AuthRequest, res) => {
+router.get('/dashboard/upcoming', async (_req: AuthRequest, res) => {
   try {
     const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     

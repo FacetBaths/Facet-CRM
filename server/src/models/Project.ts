@@ -279,12 +279,6 @@ const ProjectExpenseSchema = new Schema<IProjectExpense>(
   { _id: true }
 );
 
-const PaymentTermsSchema = new Schema({
-  type: { type: String, enum: ['standard', 'payment_plan'], default: 'standard' },
-  total: { type: Number, default: 0 },
-  milestones: { type: [PaymentScheduleMilestoneSchema], default: [] },
-}, { _id: false });
-
 const CommissionSchema = new Schema({
   // Sales reps - supports split commissions
   salesReps: [{
