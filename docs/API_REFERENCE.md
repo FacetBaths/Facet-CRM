@@ -506,7 +506,52 @@ Get dashboard stats with role-based filtering.
     "in_production": 12
   }
 }
+
+### GET /projects/:id/audit-logs
+Fetch project audit history with pagination and filters. Sorted by timestamp descending. Populates user references.
+
+**Auth Requirement:** Required, with role-based access to the project
+
+**Minimum Role:** Varies by project assignment (sales own projects, admins all)
+
+**Query Parameters:**
+- page: number (default: 1)
+- limit: number (default: 20)
+- startDate: string (ISO date) - Filter logs from this date
+- endDate: string (ISO date) - Filter logs to this date
+- action: string - Filter by action type
+
+**Response:**
+```json
+{
+  "logs": [
+    {
+      "timestamp": "2026-04-01T10:30:00Z",
+      "userId": {
+        "firstName": "John",
+        "lastName": "Doe",
+        "email": "john@example.com",
+        "avatar": "..."
+      },
+      "action": "update",
+      "changes": [
+        {
+          "field": "status",
+          "oldValue": "lead",
+          "newValue": "contract_signed"
+        }
+      ]
+    }
+  ],
+  "total": 15,
+  "page": 1,
+  "limit": 20
+}
 ```
+
+**Error Responses:**
+- 404: Project not found or access denied
+- 500: Failed to fetch audit logs
 
 ---
 

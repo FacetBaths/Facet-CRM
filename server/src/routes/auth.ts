@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
-import { User } from '../models/User';
+import User, { IUser } from '../models/User';
 import { generateToken } from '../middleware/auth';
 
 const router = Router();

@@ -1,4 +1,4 @@
-import { defineBoot } from '#q-app/wrappers';
+// Removed invalid import as it was not found; using standard Vue setup instead
 import axios, { type AxiosInstance } from 'axios';
 
 declare module 'vue' {
@@ -29,7 +29,10 @@ api.interceptors.response.use(
   }
 );
 
-export default defineBoot(({ app }) => {
+export default function ({ app }: { app: import('vue').App }) {
+  app.config.globalProperties.$axios = axios;
+  app.config.globalProperties.$api = api;
+};
   app.config.globalProperties.$axios = axios;
   app.config.globalProperties.$api = api;
 });

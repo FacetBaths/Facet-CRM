@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { Project } from '../models/Project';
-import { User } from '../models/User';
+import { IProject } from '../models/Project';
+import { IUser } from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 
 const router = Router();

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import { Schema, Document, Types, model } from 'mongoose';
 
 export interface IProjectLineItem {
   _id?: Types.ObjectId;
@@ -80,6 +80,15 @@ export interface IProjectExpense {
   invoiced: boolean;
   paid: boolean;
   invoiceNumber?: string;
+}
+
+export interface IAuditLog {
+  _id?: Types.ObjectId;
+  timestamp: Date;
+  userId: Types.ObjectId;
+  action: string;
+  changes: { field: string; oldValue: unknown; newValue: unknown }[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface IProject extends Document {
@@ -177,7 +186,7 @@ export interface IProject extends Document {
   // Audit fields
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
-
+  auditLogs: IAuditLog[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -308,69 +317,64 @@ const CommissionSchema = new Schema({
   calcMethod: { type: String, enum: ['flat', 'percentage'] },
 }, { _id: false });
 
-const ProjectSchema = new Schema<IProject>(
+const AuditLogSchema = new Schema<IAuditLog>(
   {
-    projectNumber: { type: String, required: true, unique: true, index: true },
-    customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
-    type: { type: String, enum: ['renovation', 'service', 'warranty', 'retail'], required: true },
-    parentProjectId: { type: Schema.Types.ObjectId, ref: 'Project' },
-    status: {
-      type: String,
-      enum: [
-        // Prospect group
-        'lead', 'appointment', 'rehash_multitouch', 'contract_sent',
-        // Customer group  
-        'contract_signed', 'funding_cleared', 'deal_scrub_in_progress', 'change_order_needed', 'deal_scrub_complete',
-        // Production group
-        'materials_ordered', 'materials_released', 'materials_received',
-        // Install group
-        'install_contacted', 'install_in_progress', 'install_hung', 'install_complete_service_needed', 'install_complete',
-        // Completed
-        'funding_received', 'completed', 'cancelled'
-      ],
-      default: 'lead',
-      index: true,
-    },
-    title: { type: String, required: true },
-    description: { type: String },
-    address: {
-      street: { type: String, required: true },
-      city: { type: String, required: true },
-      state: { type: String, required: true },
-      zip: { type: String, required: true },
-    },
-    assignedSalesId: { type: Schema.Types.ObjectId, ref: 'User' },
-    source: { type: String },
-    leadDate: { type: Date, default: Date.now },
-    designAppointmentDate: { type: Date },
-    contractDate: { type: Date },
-    contractAmount: { type: Number, default: 0 },
-    lineItems: { type: [ProjectLineItemSchema], default: [] },
-    tasks: { type: [ProjectTaskSchema], default: [] },
-    activities: { type: [ProjectActivitySchema], default: [] },
-    changeOrders: { type: [ChangeOrderSchema], default: [] },
-    paymentTerms: {
-      type: { type: String, enum: ['standard', 'payment_plan'], default: 'standard' },
-      total: { type: Number, default: 0 },
-      milestones: { type: [PaymentScheduleMilestoneSchema], default: [] },
-    },
-    payments: { type: [ProjectPaymentSchema], default: [] },
-    expenses: { type: [ProjectExpenseSchema], default: [] },
-    commission: { type: CommissionSchema, default: () => ({}) },
-    materialsOrderedDate: { type: Date },
-    productionStartDate: { type: Date },
-    productionEndDate: { type: Date },
-    estimatedCompletionDate: { type: Date },
-    warrantyStartDate: { type: Date },
-    // Audit fields
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    timestamp: { type: Date, default: Date.now },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    action: { type: String, required: true },
+    changes: [{
+      field: { type: String, required: true },
+      oldValue: { type: Schema.Types.Mixed },
+      newValue: { type: Schema.Types.Mixed },
+    }],
+    metadata: { type: Schema.Types.Mixed },
   },
-  { timestamps: true }
+  { _id: true }
 );
 
-// Indexes for common queries
+const ProjectSchema = new Schema<IProject>({
+  projectNumber: { type: String, unique: true, required: true },
+  customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true },
+  type: { type: String, enum: ['renovation', 'service', 'warranty', 'retail'], required: true },
+  parentProjectId: { type: Schema.Types.ObjectId, ref: 'Project' },
+  status: { type: String, enum: ['lead', 'qualified', 'design_scheduled', 'contract_sent', 'contract_signed', 'rescission_period', 'materials_ordered', 'production_scheduled', 'in_production', 'final_walkthrough', 'completed', 'cancelled'], default: 'lead' },
+  title: { type: String, required: true },
+  description: { type: String },
+  address: {
+    street: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    zip: { type: String, required: true },
+  },
+  assignedSalesId: { type: Schema.Types.ObjectId, ref: 'User' },
+  source: { type: String },
+  leadDate: { type: Date, default: Date.now },
+  designAppointmentDate: { type: Date },
+  contractDate: { type: Date },
+  contractAmount: { type: Number, default: 0 },
+  lineItems: [ProjectLineItemSchema],
+  tasks: [ProjectTaskSchema],
+  activities: [ProjectActivitySchema],
+  changeOrders: [ChangeOrderSchema],
+  paymentTerms: {
+    type: { type: String, enum: ['standard', 'payment_plan'], default: 'standard' },
+    total: { type: Number, default: 0 },
+    milestones: [PaymentScheduleMilestoneSchema],
+  },
+  commission: CommissionSchema,
+  payments: [ProjectPaymentSchema],
+  expenses: [ProjectExpenseSchema],
+  materialsOrderedDate: { type: Date },
+  productionStartDate: { type: Date },
+  productionEndDate: { type: Date },
+  estimatedCompletionDate: { type: Date },
+  warrantyStartDate: { type: Date },
+  createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  auditLogs: [AuditLogSchema],
+}, { timestamps: true });
+
 ProjectSchema.index({ status: 1, assignedSalesId: 1 });
 ProjectSchema.index({ customerId: 1, status: 1 });
 
-export const Project = mongoose.model<IProject>('Project', ProjectSchema);
+export default model<IProject>('Project', ProjectSchema);

@@ -200,7 +200,7 @@ router.put('/markets/:id', async (req: AuthRequest, res) => {
 router.delete('/markets/:id', async (req: AuthRequest, res) => {
   try {
     // Check if users are assigned to this market
-    const { User } = await import('../models/User');
+    const User = (await import('../models/User')).default;
     const userCount = await User.countDocuments({ marketId: req.params.id });
     
     if (userCount > 0) {

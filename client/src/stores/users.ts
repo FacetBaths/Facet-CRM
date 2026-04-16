@@ -28,14 +28,20 @@ export const useUserStore = defineStore('users', () => {
       .map(u => ({ ...u, fullName: `${u.firstName} ${u.lastName}` }))
   );
 
-  const bdcUsers = computed(() =>
+  const designConsultants = computed(() =>
     users.value
-      .filter(u => u.roles.includes('bdc') && u.status === 'active')
+      .filter(u => u.roles.includes('design_consultant') && u.status === 'active')
       .map(u => ({ ...u, fullName: `${u.firstName} ${u.lastName}` }))
   );
 
   const allUsers = computed(() =>
     users.value.map(u => ({ ...u, fullName: `${u.firstName} ${u.lastName}` }))
+  );
+
+  const installerUsers = computed(() =>
+    users.value
+      .filter(u => u.roles.includes('installer') && u.status === 'active')
+      .map(u => ({ ...u, fullName: `${u.firstName} ${u.lastName}` }))
   );
 
   const fetchUsers = async () => {
@@ -79,7 +85,8 @@ export const useUserStore = defineStore('users', () => {
     users: allUsers,
     isLoading,
     salesUsers,
-    bdcUsers,
+    designConsultants,
+    installerUsers,
     fetchUsers,
     getUserName,
     createUser,

@@ -25,6 +25,12 @@ export interface ICustomer extends Document {
   updatedBy?: Types.ObjectId;
   // Current assigned sales rep
   assignedSalesId?: Types.ObjectId;
+  auditLogs: Array<{
+    action: string;
+    userId: Types.ObjectId;
+    timestamp: Date;
+    changes: Array<{ field: string; oldValue: any; newValue: any }>;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,8 +61,18 @@ const CustomerSchema = new Schema<ICustomer>(
     // Audit fields
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-    // Current assigned sales rep (for ongoing relationship)
+    // Current assigned sales rep
     assignedSalesId: { type: Schema.Types.ObjectId, ref: 'User' },
+    auditLogs: [{
+      action: { type: String, required: true },
+      userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+      timestamp: { type: Date, default: Date.now },
+      changes: [{
+        field: { type: String },
+        oldValue: { type: Schema.Types.Mixed },
+        newValue: { type: Schema.Types.Mixed }
+      }]
+    }],
   },
   { timestamps: true }
 );

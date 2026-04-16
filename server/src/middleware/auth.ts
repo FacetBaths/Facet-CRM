@@ -1,9 +1,10 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { User, IUser, UserRole, hasAnyRole } from '../models/User';
+import User, { IUser, UserRole, hasAnyRole } from '../models/User';
 
 interface AuthRequest extends Request {
   user?: IUser;
+  newProject?: any;
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';

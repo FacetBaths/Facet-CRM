@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import { Schema, Document, Types, model } from 'mongoose';
 
 export type UserRole = 'admin' | 'bdc' | 'sales' | 'warehouse' | 'production' | 'contractor' | 'manager' | 'installer';
 export type UserStatus = 'active' | 'inactive' | 'suspended' | 'terminated';
@@ -16,19 +16,16 @@ export type Permission =
 export interface IUser extends Document {
   _id: Types.ObjectId;
   
-  // Authentication
   email: string;
   passwordHash: string;
   
-  // Profile
   firstName: string;
   lastName: string;
-  avatar?: string; // URL to avatar image
+  avatar?: string;
   bio?: string;
   phone?: string;
   phoneExtension?: string;
   
-  // Employment
   employeeId?: string;
   employmentType: EmploymentType;
   status: UserStatus;
@@ -36,25 +33,20 @@ export interface IUser extends Document {
   terminationDate?: Date;
   department?: string;
   
-  // Roles & Permissions
   roles: UserRole[];
-  permissions?: Permission[]; // Granular permissions beyond roles
+  permissions?: Permission[];
   
-  // Market/Region
-  marketId?: Types.ObjectId; // Which market they're assigned to
-  markets?: Types.ObjectId[]; // Markets they have access to (for multi-market managers)
+  marketId?: Types.ObjectId;
+  markets?: Types.ObjectId[];
   
-  // Teams
-  teamIds?: Types.ObjectId[]; // Teams/groups they belong to
+  teamIds?: Types.ObjectId[];
   
-  // Commission
-  commissionTier?: number; // 1, 2, 3 for different rates
+  commissionTier?: number;
   commissionSettings?: {
     useFlatRate: boolean;
     isOwner: boolean;
   };
   
-  // Preferences
   preferences: {
     theme: 'light' | 'dark' | 'auto';
     timezone: string;
@@ -67,10 +59,9 @@ export interface IUser extends Document {
       push: boolean;
       desktop: boolean;
     };
-    dashboardLayout?: Record<string, any>; // Customizable dashboard
+    dashboardLayout?: Record<string, any>;
   };
   
-  // Security
   lastLoginAt?: Date;
   lastLoginIp?: string;
   failedLoginAttempts: number;
@@ -79,7 +70,6 @@ export interface IUser extends Document {
   twoFactorEnabled: boolean;
   twoFactorSecret?: string;
   
-  // Audit
   createdBy?: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   createdAt: Date;
@@ -106,87 +96,65 @@ const CommissionSettingsSchema = new Schema({
   isOwner: { type: Boolean, default: false },
 }, { _id: false });
 
-const UserSchema = new Schema<IUser>(
-  {
-    // Authentication
-    email: { type: String, required: true, unique: true, index: true },
-    passwordHash: { type: String, required: true },
-    
-    // Profile
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    avatar: { type: String },
-    bio: { type: String },
-    phone: { type: String },
-    phoneExtension: { type: String },
-    
-    // Employment
-    employeeId: { type: String, unique: true, sparse: true },
-    employmentType: { 
-      type: String, 
-      enum: ['full_time', 'part_time', 'contractor', 'intern'],
-      default: 'full_time'
-    },
-    status: {
-      type: String,
-      enum: ['active', 'inactive', 'suspended', 'terminated'],
-      default: 'active',
-    },
-    hireDate: { type: Date },
-    terminationDate: { type: Date },
-    department: { type: String },
-    
-    // Roles & Permissions
-    roles: {
-      type: [String],
-      enum: ['admin', 'bdc', 'sales', 'warehouse', 'production', 'contractor', 'manager', 'installer'],
-      required: true,
-      default: ['contractor'],
-    },
-    permissions: [{ type: String }],
-    
-    // Market/Region
-    marketId: { type: Schema.Types.ObjectId, ref: 'Market' },
-    markets: [{ type: Schema.Types.ObjectId, ref: 'Market' }],
-    
-    // Teams
-    teamIds: [{ type: Schema.Types.ObjectId, ref: 'Team' }],
-    
-    // Commission
-    commissionTier: { type: Number, default: 1 },
-    commissionSettings: { type: CommissionSettingsSchema },
-    
-    // Preferences
-    preferences: { type: PreferencesSchema, default: () => ({}) },
-    
-    // Security
-    lastLoginAt: { type: Date },
-    lastLoginIp: { type: String },
-    failedLoginAttempts: { type: Number, default: 0 },
-    lockedUntil: { type: Date },
-    passwordChangedAt: { type: Date, default: Date.now },
-    twoFactorEnabled: { type: Boolean, default: false },
-    twoFactorSecret: { type: String },
-    
-    // Audit
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
-    updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+const UserSchema = new Schema<IUser>({
+  email: { type: String, required: true, unique: true, index: true },
+  passwordHash: { type: String, required: true },
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  avatar: { type: String },
+  bio: { type: String },
+  phone: { type: String },
+  phoneExtension: { type: String },
+  employeeId: { type: String, unique: true, sparse: true },
+  employmentType: { 
+    type: String, 
+    enum: ['full_time', 'part_time', 'contractor', 'intern'],
+    default: 'full_time'
   },
-  { timestamps: true }
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'suspended', 'terminated'],
+    default: 'active',
+  },
+  hireDate: { type: Date },
+  terminationDate: { type: Date },
+  department: { type: String },
+  roles: {
+    type: [String],
+    enum: ['admin', 'bdc', 'sales', 'warehouse', 'production', 'contractor', 'manager', 'installer'],
+    required: true,
+    default: ['contractor'],
+  },
+  permissions: [{ type: String }],
+  marketId: { type: Schema.Types.ObjectId, ref: 'Market' },
+  markets: [{ type: Schema.Types.ObjectId, ref: 'Market' }],
+  teamIds: [{ type: Schema.Types.ObjectId, ref: 'Team' }],
+  commissionTier: { type: Number, default: 1 },
+  commissionSettings: { type: CommissionSettingsSchema },
+  preferences: { type: PreferencesSchema, default: () => ({}) },
+  lastLoginAt: { type: Date },
+  lastLoginIp: { type: String },
+  failedLoginAttempts: { type: Number, default: 0 },
+  lockedUntil: { type: Date },
+  passwordChangedAt: { type: Date, default: Date.now },
+  twoFactorEnabled: { type: Boolean, default: false },
+  twoFactorSecret: { type: String },
+  createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+},
+{ timestamps: true }
 );
 
-// Indexes for performance
 UserSchema.index({ status: 1, marketId: 1 });
 UserSchema.index({ roles: 1 });
 UserSchema.index({ teamIds: 1 });
 
-// Pre-save hook to auto-generate employee ID
 UserSchema.pre('save', async function(next) {
   if (this.isNew && !this.employeeId) {
     try {
       const { CompanySettings } = await import('./CompanySettings');
       const employeeId = await CompanySettings.generateEmployeeId(
-        this.marketId?.toString() || '',
+        this.marketId ? this.marketId.toString() : '',
         this.roles[0] || 'contractor'
       );
       if (employeeId) {
@@ -194,59 +162,13 @@ UserSchema.pre('save', async function(next) {
       }
     } catch (error) {
       console.error('Failed to auto-generate employee ID:', error);
-      // Don't fail user creation if ID generation fails
     }
   }
   next();
 });
 
-export const User = mongoose.model<IUser>('User', UserSchema);
-
-// Helper function to check if user has a specific role
-export const hasRole = (user: IUser, role: UserRole): boolean => {
-  return user.roles?.includes(role) || false;
-};
-
-// Helper function to check if user has any of the given roles
-export const hasAnyRole = (user: IUser, roles: UserRole[]): boolean => {
-  if (!user.roles) return false;
+export function hasAnyRole(user: IUser, roles: UserRole[]): boolean {
   return roles.some(role => user.roles.includes(role));
-};
+}
 
-// Helper function to check if user has all given roles
-export const hasAllRoles = (user: IUser, roles: UserRole[]): boolean => {
-  if (!user.roles) return false;
-  return roles.every(role => user.roles.includes(role));
-};
-
-// Helper function to check if user has a specific permission
-export const hasPermission = (user: IUser, permission: Permission): boolean => {
-  // Admins have all permissions
-  if (user.roles?.includes('admin')) return true;
-  // Check explicit permissions
-  return user.permissions?.includes(permission) || false;
-};
-
-// Helper function to check if user has any of the given permissions
-export const hasAnyPermission = (user: IUser, permissions: Permission[]): boolean => {
-  if (user.roles?.includes('admin')) return true;
-  if (!user.permissions) return false;
-  return permissions.some(p => user.permissions?.includes(p));
-};
-
-// Helper function to check if user can access a specific market
-export const canAccessMarket = (user: IUser, marketId: string): boolean => {
-  if (user.roles?.includes('admin')) return true;
-  if (user.marketId?.toString() === marketId) return true;
-  return user.markets?.some(m => m.toString() === marketId) || false;
-};
-
-// Helper to get full display name
-export const getFullName = (user: IUser): string => {
-  return `${user.firstName} ${user.lastName}`;
-};
-
-// Helper to get initials
-export const getInitials = (user: IUser): string => {
-  return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
-};
+export default model('User', UserSchema);
