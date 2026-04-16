@@ -286,11 +286,15 @@ List projects with role-based filtering.
 - `type` - Filter by type (renovation, service, warranty, retail)
 - `search` - Search title or project number
 - `customerId` - Filter by customer
+- `marketId` - Filter by market (NEW - April 2025)
+- `contractorId` - Filter by assigned contractor (NEW - April 2025)
+- `dateRange` - Filter by date range: `today`, `week`, `month`, `overdue` (NEW - April 2025)
 
 **Role-Based Access:**
 - Admins see all projects
 - Sales/BDC see their assigned projects
 - Contractors see projects with their assigned tasks
+- Managers see projects in their markets
 
 **Response:**
 ```json
@@ -309,7 +313,10 @@ List projects with role-based filtering.
     "assignedSalesId": {
       "firstName": "John",
       "lastName": "Doe"
-    }
+    },
+    "marketId": { "name": "Illinois", "code": "IL" },
+    "contractorIds": ["..."],
+    "taskStats": { "total": 5, "completed": 2, "pending": 3 }
   }
 ]
 ```
@@ -328,6 +335,7 @@ Get full project details with all related data populated.
   "contractAmount": 17500,
   "customerId": { /* full customer object */ },
   "assignedSalesId": { /* user object */ },
+  "contractorIds": [ /* assigned contractors */ ],
   "address": { /* address object */ },
   "lineItems": [...],
   "tasks": [...],
@@ -335,7 +343,8 @@ Get full project details with all related data populated.
   "payments": [...],
   "expenses": [...],
   "changeOrders": [...],
-  "paymentTerms": { /* payment schedule */ }
+  "paymentTerms": { /* payment schedule */ },
+  "taskStats": { "total": 5, "completed": 2, "pending": 3 }
 }
 ```
 
@@ -360,7 +369,9 @@ Create a new project. Auto-generates project number.
   },
   "contractAmount": 17500,
   "assignedSalesId": "...",
-  "source": "Website Lead"
+  "contractorIds": ["..."],
+  "source": "Website Lead",
+  "marketId": "..."
 }
 ```
 
@@ -389,7 +400,8 @@ Add a task to the project.
   "title": "Order tile samples",
   "description": "Get 3 options for customer",
   "assignedTo": "user_id",
-  "dueDate": "2026-03-30"
+  "dueDate": "2026-03-30",
+  "contractorId": "..."
 }
 ```
 
@@ -911,4 +923,16 @@ API requests are limited to 100 per 15 minutes per IP address.
 
 ---
 
-*Last Updated: 2026-04-06*
+*Last Updated: 2026-04-13*
+
+## Changelog
+
+### April 13, 2026
+- **Projects API**: Added `marketId` and `contractorIds` fields to project schema
+- **Projects API**: Added new query parameters: `marketId`, `contractorId`, `dateRange` (today/week/month/overdue)
+- **Projects API**: Response now includes `taskStats` (total/completed/pending counts)
+- **Projects API**: Tasks now support `contractorId` field for contractor assignments
+- **Company API**: Added employee ID preview endpoint (`POST /company/preview-employee-id`)
+- **Company API**: Added markets management endpoints (GET/POST/PUT/DELETE)
+- **User Management API**: Added status management endpoint (`PATCH /users/:id/status`)
+- **User Management API**: Added market-based user filtering (`GET /users/market/:marketId`)

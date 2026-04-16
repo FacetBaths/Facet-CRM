@@ -129,33 +129,98 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
 }
 ```
 
-### Markets Collection
+### Markets Collection (NEW - April 2025)
 ```javascript
 {
   _id: ObjectId,
-  name: String,             // e.g., "Illinois"
-  code: String,             // e.g., "IL"
+  name: String,             // e.g., "Illinois", "New England"
+  code: String,             // e.g., "IL", "NE" (uppercase, unique)
+  status: Enum['active', 'inactive', 'planning'],
+  
+  // Location
+  region: String,           // e.g., "Midwest", "Northeast"
   timezone: String,         // e.g., "America/Chicago"
-  currency: String,         // e.g., "USD"
+  
+  // Address
+  address: {
+    street: String,
+    city: String,
+    state: String,
+    zip: String,
+    country: String
+  },
+  
+  // Contact
+  phone: String,
+  email: String,
+  
+  // Operations
   managerId: ObjectId (ref: Users),
-  isActive: Boolean,
-  createdBy: ObjectId,
-  updatedBy: ObjectId,
+  operatingHours: {
+    monday: { open: String, close: String },
+    tuesday: { open: String, close: String },
+    wednesday: { open: String, close: String },
+    thursday: { open: String, close: String },
+    friday: { open: String, close: String },
+    saturday: { open: String, close: String },
+    sunday: { open: String, close: String }
+  },
+  
+  // Settings
+  settings: {
+    currency: String,
+    dateFormat: String,
+    defaultTaxRate: Number
+  },
+  
+  // Branding
+  branding: {
+    logoUrl: String,
+    primaryColor: String,
+    secondaryColor: String
+  },
+  
+  // Audit
+  createdBy: ObjectId (ref: Users),
+  updatedBy: ObjectId (ref: Users),
   createdAt: Date,
   updatedAt: Date
 }
 ```
 
-### Teams Collection
+### Teams Collection (NEW - April 2025)
 ```javascript
 {
   _id: ObjectId,
   name: String,
-  type: Enum['sales', 'production', 'install', 'bdc', 'admin'],
+  description: String,
+  type: Enum['sales', 'production', 'bdc', 'warehouse', 'installers', 'custom'],
+  
+  // Membership
+  memberIds: [ObjectId (ref: Users)],
+  leadId: ObjectId (ref: Users),
+  
+  // Market scope
   marketId: ObjectId (ref: Markets),
-  managerId: ObjectId (ref: Users),
-  memberIds: [ObjectId],    // Users in this team
+  
+  // Assignment rules
+  autoAssignLeads: Boolean,
+  assignmentStrategy: Enum['round_robin', 'least_active', 'manual'],
+  
+  // Metrics
+  goals: {
+    monthlyRevenue: Number,
+    monthlyDeals: Number,
+    startDate: Date,
+    endDate: Date
+  },
+  
+  // Status
   isActive: Boolean,
+  
+  // Audit
+  createdBy: ObjectId (ref: Users),
+  updatedBy: ObjectId (ref: Users),
   createdAt: Date,
   updatedAt: Date
 }
@@ -273,6 +338,8 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
     zip: String
   },
   assignedSalesId: ObjectId (ref: Users),
+  contractorIds: [ObjectId (ref: Users)],  // NEW - April 2025
+  marketId: ObjectId (ref: Markets),       // NEW - April 2025
   source: String,           // Lead source
   leadDate: Date,
   designAppointmentDate: Date,
@@ -294,6 +361,7 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
     title: String,
     description: String,
     assignedTo: ObjectId (ref: Users),
+    contractorId: ObjectId (ref: Users),   // NEW - April 2025
     dueDate: Date,
     status: Enum['pending', 'in_progress', 'completed', 'cancelled'],
     completedAt: Date,
@@ -491,7 +559,7 @@ Notifications are stored in-memory for the MVP. Each notification has:
 - Customers (referenced by projects)
 - Products (referenced by line items)
 - Vendors (referenced by expenses)
-- Markets (referenced by users)
+- Markets (referenced by users and projects)
 - Teams (referenced by users)
 
 **Rationale:** Projects are the central workflow unit. Once created, activities/tasks rarely change relationships. Embedding reduces query complexity and enables atomic updates.
@@ -569,9 +637,13 @@ Multi-layered permissions:
 - `projects.customerId` - Customer project queries
 - `projects.status` - Pipeline filtering
 - `projects.assignedSalesId` - Sales dashboard
+- `projects.marketId` - Market filtering (NEW - April 2025)
+- `projects.contractorIds` - Contractor filtering (NEW - April 2025)
 - `users.email` - Login lookup
 - `users.employeeId` - Employee lookup
 - `users.status` + `users.marketId` - User listing
+- `users.teamIds` - Team membership queries
+- `markets.code` - Market code lookup (NEW - April 2025)
 - `customers.lastName` - Search/sort
 - `products.variants.sku` - SKU lookup
 
@@ -670,4 +742,16 @@ Response: { "status": "ok", "timestamp": "..." }
 
 ---
 
-*Last Updated: 2026-04-06*
+*Last Updated: 2026-04-13*
+
+## Changelog
+
+### April 13, 2026
+- **Schema**: Added Markets collection for multi-market support
+- **Schema**: Added Teams collection for team-based organization
+- **Schema**: Projects now include `marketId` and `contractorIds` fields
+- **Schema**: Tasks now support `contractorId` for contractor-specific assignments
+- **Schema**: User model includes `teamIds` for team membership
+- **Schema**: CompanySettings includes `employeeIdConfig` for auto-generation
+- **Schema**: Markets include `operatingHours`, `settings`, and `branding` sub-documents
+- **Schema**: Teams include `goals`, `autoAssignLeads`, and `assignmentStrategy` for lead routing

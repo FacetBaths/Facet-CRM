@@ -79,6 +79,7 @@ The Pipeline page shows all projects organized by stage groups:
 - Click a group header to expand/collapse sub-stages
 - Drag project cards between stages to update status
 - Click any project card to open the detail page
+- Use filters to show only your projects or specific markets
 
 ### Managing Your Pipeline (List View)
 Go to **Projects** to see all your leads in list format.
@@ -240,9 +241,16 @@ Go to **User Management** in the sidebar to:
 - Assign users to markets and teams
 - Activate/suspend/terminate accounts
 - Reset passwords
+- Generate employee IDs manually
 
 **Employee IDs:**
-The system can auto-generate employee IDs based on your company settings (e.g., IL-FRS0001 for Illinois Sales #1).
+The system can auto-generate employee IDs based on your company settings (e.g., IL-FRS0001 for Illinois Sales #1). You can also generate IDs manually by clicking the "Generate" button when editing a user.
+
+**User Statuses:**
+- **Active** - Can log in and use the system
+- **Inactive** - Cannot log in (soft delete)
+- **Suspended** - Temporarily blocked
+- **Terminated** - Former employee, cannot log in
 
 ### Managing Markets
 Go to **Company Settings → Markets** to:
@@ -250,6 +258,22 @@ Go to **Company Settings → Markets** to:
 - Assign market codes (used in employee IDs)
 - Set market managers
 - Configure timezone and currency
+- Set operating hours
+- Configure market-specific branding
+
+**Market Codes:**
+Used in employee ID generation (e.g., "IL" for Illinois becomes IL-FRS0001).
+
+### Managing Teams
+Go to **Company Settings → Teams** to:
+- Create teams (Sales, Production, Installers, etc.)
+- Assign team leads
+- Add/remove team members
+- Configure lead assignment strategies:
+  - **Round Robin** - Distribute leads evenly
+  - **Least Active** - Give to person with fewest active leads
+  - **Manual** - Manager assigns manually
+- Set team goals (monthly revenue, deals)
 
 ### Commission Calculation
 1. Open a completed project
@@ -323,6 +347,16 @@ Go to the Payment History section on the project, click edit or void, and enter 
 ### What's my employee ID?
 Check your **Profile** page. If auto-generation is enabled, you'll see it there (e.g., IL-FRS0001).
 
+### How do markets work?
+Markets represent geographic regions (e.g., Illinois, New England). Users are assigned to markets, and projects can be filtered by market. Employee IDs include market codes.
+
+### What's the difference between teams and markets?
+- **Markets** = Geographic regions (Illinois, Nebraska)
+- **Teams** = Functional groups within markets (Northside Sales, Install Crew A)
+
+### Can a user be in multiple teams?
+Yes! Users can belong to multiple teams and have access to multiple markets (for managers).
+
 ---
 
 ## Tips & Best Practices
@@ -361,6 +395,7 @@ Contractors: Save the CRM as a home screen bookmark for quick access on job site
 - Use the Pipeline view for a quick visual status of all projects
 - Drag cards to update status quickly
 - Click group headers to focus on specific stages
+- Use filters to see only your projects or specific markets
 
 ---
 
@@ -391,6 +426,12 @@ Contractors: Save the CRM as a home screen bookmark for quick access on job site
 - Check that the payment hasn't already been voided
 - Verify you entered a reason (required)
 
+### Employee ID not generating
+- Check that Company Settings has employee ID generation enabled
+- Verify the user has a market assigned
+- Verify the user has at least one role selected
+- Check that market codes are configured in Company Settings
+
 ---
 
 ## Contact
@@ -404,4 +445,27 @@ Contractors: Save the CRM as a home screen bookmark for quick access on job site
 
 ---
 
-*Last Updated: 2026-03-30*
+*Last Updated: 2026-04-13*
+
+## Changelog
+
+### April 13, 2026
+- **User Management Page**: New admin-only page for managing team members
+  - Add/edit users with full profile information
+  - Assign users to markets and teams
+  - Generate employee IDs manually
+  - Filter users by status, role, and search
+  - View user details in a clean card layout
+- **Pipeline Page Updates**: 
+  - Added market filtering for multi-market organizations
+  - Added contractor filtering to see contractor assignments
+  - Added date range filters (Today, This Week, This Month, Overdue)
+  - Task statistics now show in project cards (total/completed/pending)
+- **Project Detail Page Updates**:
+  - Added contractor assignment section
+  - Enhanced task management with contractor-specific assignments
+  - Improved payment history with edit/void capabilities
+  - Better activity feed with status change tracking
+- **Company Settings**: New markets management for multi-market support
+- **Employee IDs**: Auto-generation based on market and role codes
+- **Teams**: Support for team-based organization with lead assignment strategies
