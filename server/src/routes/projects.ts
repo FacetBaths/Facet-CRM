@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import Project from '../models/Project';
+import { Project } from '../models/Project';
 import { AuthRequest, requireRole } from '../middleware/auth';
 import { io } from '../index';
 import multer from 'multer';
@@ -71,8 +71,8 @@ const auditMiddleware = (handler: (req: AuthRequest, res: Response) => Promise<v
     let newProject;
     if (projectId) {
       newProject = await Project.findById(projectId);
-    } else if (req.newProject) {
-      newProject = req.newProject;
+    } else if ((req as any).newProject) {
+      newProject = (req as any).newProject;
     } else {
       return;
     }

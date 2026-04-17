@@ -177,10 +177,10 @@ export interface IProject extends Document {
   // Audit fields
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
-
-createdAt: Date;
-updatedAt: Date;
-attachments: IProjectAttachment[];
+  auditLogs: { action: string; userId: Types.ObjectId; timestamp: Date; changes: any[] }[];
+  attachments: IProjectAttachment[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IProjectAttachment {
@@ -387,7 +387,8 @@ const ProjectSchema = new Schema<IProject>(
     // Audit fields
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-  attachments: { type: [ProjectAttachmentSchema], default: [] },
+    auditLogs: { type: [{ action: String, userId: { type: Schema.Types.ObjectId, ref: 'User' }, timestamp: { type: Date, default: Date.now }, changes: { type: Schema.Types.Mixed } }], default: [] },
+    attachments: { type: [ProjectAttachmentSchema], default: [] },
   },
   { timestamps: true }
 );

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { IProject } from '../models/Project';
-import { IUser } from '../models/User';
+import { Project } from '../models/Project';
+import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -48,7 +48,7 @@ router.get('/dashboard', async (req: AuthRequest, res) => {
       .populate('commission.bdcRepId', 'firstName lastName role');
     
     // Build report by user
-    const userCommissions = users.map(user => {
+    const userCommissions = users.map((user: any) => {
       const userId = user._id.toString();
       const isOwner = user.commissionSettings?.isOwner || false;
       
@@ -57,7 +57,7 @@ router.get('/dashboard', async (req: AuthRequest, res) => {
       let unpaid = 0;
       let projectCount = 0;
       
-      projects.forEach(project => {
+      projects.forEach((project: any) => {
         // Sales commission (split commissions supported)
         if (project.commission?.salesReps) {
           const mySalesRep = project.commission.salesReps.find(
@@ -129,9 +129,9 @@ router.get('/dashboard', async (req: AuthRequest, res) => {
     
     // Calculate totals
     const totals = {
-      earned: userCommissions.reduce((sum, u) => sum + u.earned, 0),
-      paid: userCommissions.reduce((sum, u) => sum + u.paid, 0),
-      unpaid: userCommissions.reduce((sum, u) => sum + u.unpaid, 0),
+      earned: userCommissions.reduce((sum: number, u: any) => sum + u.earned, 0),
+      paid: userCommissions.reduce((sum: number, u: any) => sum + u.paid, 0),
+      unpaid: userCommissions.reduce((sum: number, u: any) => sum + u.unpaid, 0),
     };
     
     res.json({
@@ -172,7 +172,7 @@ router.get('/user/:userId', async (req: AuthRequest, res) => {
     // Filter commissions for this user
     const commissions: any[] = [];
     
-    projects.forEach(project => {
+    projects.forEach((project: any) => {
       // Sales commissions
       if (project.commission?.salesReps) {
         const mySales = project.commission.salesReps.find(

@@ -31,7 +31,9 @@ import subscriptionRoutes from './routes/subscriptions';
 import commissionRoutes from './routes/commissions';
 import companyRoutes from './routes/company';
 import notificationRoutes from './routes/notifications';
-import { syncEmails } from './routes/emails';
+import emailRoutes, { syncEmails } from './routes/emails';
+import calendarRoutes from './routes/calendar';
+import auditRoutes from './routes/audits';
 
 dotenv.config();
 
@@ -86,6 +88,9 @@ app.use('/api/subscriptions', authMiddleware, subscriptionRoutes);
 app.use('/api/commissions', authMiddleware, commissionRoutes);
 app.use('/api/company', authMiddleware, companyRoutes);
 app.use('/api/notifications', authMiddleware, notificationRoutes);
+app.use('/api/emails', authMiddleware, emailRoutes);
+app.use('/api/calendar-events', authMiddleware, calendarRoutes);
+app.use('/api/audits', authMiddleware, auditRoutes);
 
 // Socket.io connection handling
 io.on('connection', (socket) => {

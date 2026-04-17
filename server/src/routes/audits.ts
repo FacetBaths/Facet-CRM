@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import mongoose from 'mongoose';
 import { AuthRequest, requireRole } from '../middleware/auth';
-import Project from '../models/Project';
+import { Project } from '../models/Project';
 import { Customer } from '../models/Customer';
 
 const router = Router();
