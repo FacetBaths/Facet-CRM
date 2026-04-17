@@ -1,91 +1,91 @@
-&lt;template&gt;
-  &lt;q-page class=&quot;q-pa-md&quot;&gt;
-    &lt;div class=&quot;text-h5 q-mb-md&quot;&gt;Point of Sale&lt;/div&gt;
+<template>
+  <q-page class="q-pa-md">
+    <div class="text-h5 q-mb-md">Point of Sale</div>
     
-    &lt;!-- Search and Barcode --&gt;
-    &lt;q-input
+    <!-- Search and Barcode -->
+    <q-input
       outlined
-      v-model=&quot;searchQuery&quot;
-      label=&quot;Search products or scan barcode&quot;
-      class=&quot;q-mb-md&quot;
-      @keyup.enter=&quot;searchProducts&quot;
+      v-model="searchQuery"
+      label="Search products or scan barcode"
+      class="q-mb-md"
+      @keyup.enter="searchProducts"
       autofocus
-    &gt;
-      &lt;template v-slot:append&gt;
-        &lt;q-icon name=&quot;search&quot; /&gt;
-      &lt;/template&gt;
-    &lt;/q-input&gt;
+    >
+      <template v-slot:append>
+        <q-icon name="search" />
+      </template>
+    </q-input>
     
-    &lt;!-- Search Results --&gt;
-    &lt;q-list bordered separator v-if=&quot;posStore.searchResults.length &gt; 0&quot; class=&quot;q-mb-md glass-card&quot;&gt;
-      &lt;q-item clickable v-ripple v-for=&quot;product in posStore.searchResults&quot; :key=&quot;product._id&quot; @click=&quot;addToCart(product)&quot;&gt;
-        &lt;q-item-section&gt;
-          &lt;q-item-label&gt;{{ product.name }}&lt;/q-item-label&gt;
-          &lt;q-item-label caption&gt;${{ product.variants[0]?.retailPrice?.toLocaleString() }}&lt;/q-item-label&gt;
-        &lt;/q-item-section&gt;
-        &lt;q-item-section side&gt;
-          &lt;q-btn icon=&quot;add&quot; flat round /&gt;
-        &lt;/q-item-section&gt;
-      &lt;/q-item&gt;
-    &lt;/q-list&gt;
+    <!-- Search Results -->
+    <q-list bordered separator v-if="posStore.searchResults.length > 0" class="q-mb-md glass-card">
+      <q-item clickable v-ripple v-for="product in posStore.searchResults" :key="product._id" @click="addToCart(product)">
+        <q-item-section>
+          <q-item-label>{{ product.name }}</q-item-label>
+          <q-item-label caption>${{ product.variants[0]?.retailPrice?.toLocaleString() }}</q-item-label>
+        </q-item-section>
+        <q-item-section side>
+          <q-btn icon="add" flat round />
+        </q-item-section>
+      </q-item>
+    </q-list>
     
-    &lt;!-- Cart --&gt;
-    &lt;q-card class=&quot;glass-card q-mb-md&quot;&gt;
-      &lt;q-card-section&gt;
-        &lt;div class=&quot;text-h6&quot;&gt;Cart ({{ posStore.cart.length }} items)&lt;/div&gt;
-      &lt;/q-card-section&gt;
-      &lt;q-list separator&gt;
-        &lt;q-item v-for=&quot;(item, index) in posStore.cart&quot; :key=&quot;index&quot;&gt;
-          &lt;q-item-section&gt;
-            &lt;q-item-label&gt;{{ item.product.name }}&lt;/q-item-label&gt;
-            &lt;q-item-label caption&gt;${{ item.product.variants[0]?.retailPrice?.toLocaleString() }} x {{ item.quantity }} = ${{ (item.product.variants[0]?.retailPrice * item.quantity).toLocaleString() }}&lt;/q-item-label&gt;
-          &lt;/q-item-section&gt;
-          &lt;q-item-section side&gt;
-            &lt;q-btn icon=&quot;remove&quot; flat round @click=&quot;posStore.removeFromCart(index)&quot; /&gt;
-          &lt;/q-item-section&gt;
-        &lt;/q-item&gt;
-      &lt;/q-list&gt;
-      &lt;q-card-section class=&quot;text-right&quot;&gt;
-        &lt;div class=&quot;text-h6&quot;&gt;Total: ${{ posStore.total.toLocaleString() }}&lt;/div&gt;
-      &lt;/q-card-section&gt;
-    &lt;/q-card&gt;
+    <!-- Cart -->
+    <q-card class="glass-card q-mb-md">
+      <q-card-section>
+        <div class="text-h6">Cart ({{ posStore.cart.length }} items)</div>
+      </q-card-section>
+      <q-list separator>
+        <q-item v-for="(item, index) in posStore.cart" :key="index">
+          <q-item-section>
+            <q-item-label>{{ item.product.name }}</q-item-label>
+            <q-item-label caption>${{ item.product.variants[0]?.retailPrice?.toLocaleString() }} x {{ item.quantity }} = ${{ (item.product.variants[0]?.retailPrice * item.quantity).toLocaleString() }}</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-btn icon="remove" flat round @click="posStore.removeFromCart(index)" />
+          </q-item-section>
+        </q-item>
+      </q-list>
+      <q-card-section class="text-right">
+        <div class="text-h6">Total: ${{ posStore.total.toLocaleString() }}</div>
+      </q-card-section>
+    </q-card>
     
-    &lt;!-- Proceed Button --&gt;
-    &lt;q-btn 
-      color=&quot;primary&quot; 
-      label=&quot;Proceed to Payment&quot; 
-      class=&quot;full-width&quot; 
-      @click=&quot;proceedToPayment&quot; 
-      :disable=&quot;posStore.cart.length === 0&quot; 
-    /&gt;
+    <!-- Proceed Button -->
+    <q-btn 
+      color="primary" 
+      label="Proceed to Payment" 
+      class="full-width" 
+      @click="proceedToPayment" 
+      :disable="posStore.cart.length === 0" 
+    />
     
-    &lt;!-- Payment Dialog --&gt;
-    &lt;q-dialog v-model=&quot;showPaymentDialog&quot;&gt;
-      &lt;q-card class=&quot;glass-card&quot; style=&quot;width: 400px; max-width: 80vw;&quot;&gt;
-        &lt;q-card-section&gt;
-          &lt;div class=&quot;text-h6&quot;&gt;Process Payment&lt;/div&gt;
-          &lt;div class=&quot;text-subtitle2&quot;&gt;Total: ${{ posStore.total.toLocaleString() }}&lt;/div&gt;
-        &lt;/q-card-section&gt;
+    <!-- Payment Dialog -->
+    <q-dialog v-model="showPaymentDialog">
+      <q-card class="glass-card" style="width: 400px; max-width: 80vw;">
+        <q-card-section>
+          <div class="text-h6">Process Payment</div>
+          <div class="text-subtitle2">Total: ${{ posStore.total.toLocaleString() }}</div>
+        </q-card-section>
         
-        &lt;q-card-section&gt;
-          &lt;q-select
-            v-model=&quot;paymentMethod&quot;
-            :options=&quot;['cash', 'card', 'check']&quot;
-            label=&quot;Payment Method&quot;
+        <q-card-section>
+          <q-select
+            v-model="paymentMethod"
+            :options="['cash', 'card', 'check']"
+            label="Payment Method"
             outlined
-          /&gt;
-        &lt;/q-card-section&gt;
+          />
+        </q-card-section>
         
-        &lt;q-card-actions align=&quot;right&quot;&gt;
-          &lt;q-btn flat label=&quot;Cancel&quot; v-close-popup /&gt;
-          &lt;q-btn color=&quot;primary&quot; label=&quot;Confirm Payment&quot; @click=&quot;confirmPayment&quot; :disable=&quot;!paymentMethod&quot; /&gt;
-        &lt;/q-card-actions&gt;
-      &lt;/q-card&gt;
-    &lt;/q-dialog&gt;
-  &lt;/q-page&gt;
-&lt;/template&gt;
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn color="primary" label="Confirm Payment" @click="confirmPayment" :disable="!paymentMethod" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+  </q-page>
+</template>
 
-&lt;script setup lang=&quot;ts&quot;&gt;
+<script setup lang="ts">
 import { ref } from 'vue';
 import { useQuasar } from 'quasar';
 import { usePosStore } from '@/stores/posStore';
@@ -96,22 +96,22 @@ const searchQuery = ref('');
 const paymentMethod = ref('');
 const showPaymentDialog = ref(false);
 
-const searchProducts = () =&gt; {
+const searchProducts = () => {
   posStore.searchProducts(searchQuery.value);
 };
 
-const addToCart = (product) =&gt; {
+const addToCart = (product) => {
   posStore.addToCart(product);
   searchQuery.value = '';
   posStore.searchResults = []; // Clear results after adding
 };
 
-const proceedToPayment = () =&gt; {
+const proceedToPayment = () => {
   if (posStore.cart.length === 0) return;
   showPaymentDialog.value = true;
 };
 
-const confirmPayment = async () =&gt; {
+const confirmPayment = async () => {
   try {
     await posStore.processPayment({ method: paymentMethod.value, amount: posStore.total });
     showPaymentDialog.value = false;
@@ -121,8 +121,8 @@ const confirmPayment = async () =&gt; {
     $q.notify({ type: 'negative', message: 'Payment failed' });
   }
 };
-&lt;/script&gt;
+</script>
 
-&lt;style scoped&gt;
+<style scoped>
 /* Add any custom styles if needed */
-&lt;/style&gt;
+</style>

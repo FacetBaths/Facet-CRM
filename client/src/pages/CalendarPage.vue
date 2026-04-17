@@ -326,7 +326,7 @@ const monthDays = computed(() => {
   const start = date.startOfDate(calendarStore.selectedDate, 'month');
   const end = date.endOfDate(calendarStore.selectedDate, 'month');
   let current = start;
-  while (date.isBefore(current, end) || date.isSameDate(current, end)) {
+  while (new Date(current) <= new Date(end)) {
     days.push({
       date: date.formatDate(current, 'YYYY-MM-DD'),
       day: date.formatDate(current, 'D'),

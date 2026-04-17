@@ -1192,7 +1192,10 @@ const editPaymentData = ref({
 });
 const voidReason = ref("");
 const editing = ref(false);
-const voiding = ref(false);\nconst pnlData = ref(null);\n\nconst project = computed(() => projectStore.currentProject);
+const voiding = ref(false);
+const pnlData = ref(null);
+
+const project = computed(() => projectStore.currentProject);
 const activities = computed(() => project.value?.activities || []);
 const tasks = computed(() => project.value?.tasks || []);
 const payments = computed(() => project.value?.payments || []);
@@ -1826,7 +1829,37 @@ onMounted(async () => {
     await Promise.all([
       projectStore.fetchProject(projectId),
       userStore.fetchUsers(),
-    ]);\n\n    if (!projectStore.currentProject) {\n      error.value = \"Project not found\";\n    }\n\n    // Fetch PnL if authorized\n    if (authStore.user.roles.includes('admin') || authStore.user.roles.includes('manager')) {\n      try {\n        const { data } = await api.get(`/projects/${projectId}/pnl`);\n        pnlData.value = data;\n      } catch (err) {\n        console.error('Failed to fetch PnL', err);\n      }\n    }\n  } catch (err) {\n    error.value = err instanceof Error ? err.message : \"Failed to load project\";\n  }\n\n  // Connect socket and join project room\n  connectSocket(authStore.token);\n  joinProjectRoom(projectId);\n\n  // Set up socket listeners for real-time updates\n  socket.on(\"project:activity\", handleActivityUpdate);\n  socket.on(\"project:task\", handleTaskUpdate);\n  socket.on(\"project:payment\", handlePaymentUpdate);\n  socket.on(\"project:changeOrder\", handleChangeOrderUpdate);\n  socket.on(\"customer:updated\", handleCustomerUpdate);\n  socket.on(\"project:updated\", handleProjectUpdate);\n});
+    ]);
+
+    if (!projectStore.currentProject) {
+      error.value = "Project not found";
+    }
+
+    // Fetch PnL if authorized
+    if (authStore.user.roles.includes('admin') || authStore.user.roles.includes('manager')) {
+      try {
+        const { data } = await api.get(`/projects/${projectId}/pnl`);
+        pnlData.value = data;
+      } catch (err) {
+        console.error('Failed to fetch PnL', err);
+      }
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "Failed to load project";
+  }
+
+  // Connect socket and join project room
+  connectSocket(authStore.token);
+  joinProjectRoom(projectId);
+
+  // Set up socket listeners for real-time updates
+  socket.on("project:activity", handleActivityUpdate);
+  socket.on("project:task", handleTaskUpdate);
+  socket.on("project:payment", handlePaymentUpdate);
+  socket.on("project:changeOrder", handleChangeOrderUpdate);
+  socket.on("customer:updated", handleCustomerUpdate);
+  socket.on("project:updated", handleProjectUpdate);
+});
 
 onUnmounted(() => {
   const projectId = route.params.id as string;

@@ -107,7 +107,9 @@ const audits = computed(() => auditStore.audits);
 const isLoading = computed(() => auditStore.isLoading);
 const filters = auditStore.filters;
 
-const isAdmin = computed(() => authStore.hasRole('admin'));\nconst isManager = computed(() => authStore.hasRole('manager'));\nconst canViewAudits = computed(() => isAdmin.value || isManager.value);
+const isAdmin = computed(() => authStore.hasRole('admin'));
+const isManager = computed(() => authStore.hasRole('manager'));
+const canViewAudits = computed(() => isAdmin.value || isManager.value);
 
 const sortedAudits = computed(() => {
   return [...audits.value].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
