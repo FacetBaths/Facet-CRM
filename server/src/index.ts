@@ -143,4 +143,4 @@ const startServer = async () => {
 
 startServer();
 
-export { io };
+export { io, app };

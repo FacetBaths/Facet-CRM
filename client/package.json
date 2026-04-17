@@ -4,14 +4,14 @@
   "description": "Facet Renovations CRM Client",
   "productName": "Facet CRM",
   "author": "Facet Renovations",
-  "private": true,
+  "private": true,\n  "type": "module",
   "scripts": {
     "dev": "./node_modules/.bin/quasar dev",
     "build": "quasar build",
     "build:pwa": "quasar build -m pwa",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint --ext .js,.ts,.vue ./",
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
-    "test": "echo \"No test specified\" && exit 0"
+    "test": "vitest",\n    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",
@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@quasar/app-vite": "^2.5.2",
+    "@quasar/quasar-app-extension-testing-unit-vitest": "^1.2.4",
     "@types/node": "^20.10.4",
     "@typescript-eslint/eslint-plugin": "^8.58.2",
     "@typescript-eslint/parser": "^8.58.2",
@@ -34,6 +35,7 @@
     "eslint-plugin-vue": "^9.33.0",
     "playwright": "^1.59.1",
     "prettier": "^3.1.1",
+    "socket.io-mock": "^1.3.2",
     "typescript": "^5.9.3",
     "vite-plugin-checker": "^0.6.2"
   },

@@ -397,4 +397,43 @@ const ProjectSchema = new Schema<IProject>(
 ProjectSchema.index({ status: 1, assignedSalesId: 1 });
 ProjectSchema.index({ customerId: 1, status: 1 });
 
+ProjectSchema.methods.calculateCommission = function (calcMethod: 'flat' | 'percentage', rate: number) {
+  const contractAmount = this.contractAmount;
+
+  if (!this.assignedSalesId && (!this.commission || !this.commission.salesReps.length)) {
+    throw new Error('No sales representatives assigned. Please assign at least one sales rep to the project before calculating commission.');
+  }
+
+  const commissionData: any = {
+    salesReps: [] as any[],
+    spiffs: this.commission?.spiffs || [],
+    calculatedAt: new Date(),
+    calcMethod,
+  };
+
+  let salesAmount = 0;
+  if (calcMethod === 'percentage') {
+    salesAmount = contractAmount * (rate / 100);
+  } else {
+    salesAmount = rate;
+  }
+
+  commissionData.salesReps.push({
+    userId: this.assignedSalesId,
+    splitPercent: 100,
+    amount: salesAmount,
+    paid: false,
+  });
+
+  if (this.commission?.bdcRepId) {
+    commissionData.bdcRepId = this.commission.bdcRepId;
+    commissionData.bdcAmount = Math.round(contractAmount * 0.01 * 100) / 100;
+    commissionData.bdcPaid = false;
+  }
+
+  this.commission = commissionData;
+
+  return commissionData;
+};
+
 export const Project = mongoose.model<IProject>('Project', ProjectSchema);
