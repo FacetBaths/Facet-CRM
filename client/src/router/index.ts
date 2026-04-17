@@ -82,6 +82,36 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/CompanySettingsPage.vue'),
         name: 'company-settings',
       },
+      {
+        path: 'calendar',
+        component: () => import('@/pages/CalendarPage.vue'),
+        name: 'calendar',
+      },
+      {
+        path: 'audit-trail',
+        component: () => import('@/pages/AuditTrailPage.vue'),
+        name: 'audit-trail',
+      },
+      {
+        path: 'pos',
+        component: () => import('@/pages/POSPage.vue'),
+        name: 'pos',
+      },
+      {
+        path: 'pnl-report',
+        component: () => import('@/pages/PnLReportPage.vue'),
+        name: 'pnl-report',
+      },
+      {
+        path: 'file-uploads',
+        component: () => import('@/pages/FileUploadsPage.vue'),
+        name: 'file-uploads',
+      },
+      {
+        path: 'email',
+        component: () => import('@/pages/EmailPage.vue'),
+        name: 'email',
+      },
     ],
   },
   {
