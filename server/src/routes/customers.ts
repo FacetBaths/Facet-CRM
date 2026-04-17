@@ -28,7 +28,7 @@ const filterByUserRole = async (req: AuthRequest, res: Response, next: Function)
       ],
     }).select('customerId');
     
-    const customerIds = projects.map(p => p.customerId.toString());
+    const customerIds = projects.map((p: any) => p.customerId.toString());
     
     (req as any).roleFilter = {
       $or: [
@@ -88,8 +88,8 @@ router.get('/:id', filterByUserRole, async (req: AuthRequest, res) => {
     }
     
     const customer = await Customer.findOne(query)
-      .populate('assignedSalesId', 'firstName lastName email phone')
-      .populate('createdBy', 'firstName lastName email')
+      .populate('assignedSalesId', 'firstName lastName email')
+      .populate('createdBy', 'firstName lastName')
       .populate('updatedBy', 'firstName lastName');
       
     if (!customer) {
@@ -100,7 +100,6 @@ router.get('/:id', filterByUserRole, async (req: AuthRequest, res) => {
     // Get customer's projects with assignment info
     const projects = await Project.find({ customerId: customer._id })
       .populate('assignedSalesId', 'firstName lastName')
-      .populate('commission.bdcRepId', 'firstName lastName')
       .select('projectNumber title status assignedSalesId commission.bdcRepId contractAmount createdAt')
       .sort({ createdAt: -1 });
     
@@ -139,6 +138,16 @@ router.post(
       const customer = new Customer(customerData);
       await customer.save();
       
+      // Add create audit entry
+      const auditEntry = {
+        action: 'create',
+        userId: req.user!._id,
+        timestamp: new Date(),
+        changes: []
+      };
+      customer.auditLogs.push(auditEntry);
+      await customer.save();
+      
       const populatedCustomer = await Customer.findById(customer._id)
         .populate('assignedSalesId', 'firstName lastName')
         .populate('createdBy', 'firstName lastName');
@@ -153,14 +162,14 @@ router.post(
 // Update customer with audit
 router.put('/:id', async (req: AuthRequest, res) => {
   try {
+    const customer = await Customer.findById(req.params.id);
+    if (!customer) {
+      res.status(404).json({ error: 'Customer not found' });
+      return;
+    }
+    
     // Check access for non-admins
     if (!req.user?.roles?.includes('admin')) {
-      const customer = await Customer.findById(req.params.id);
-      if (!customer) {
-        res.status(404).json({ error: 'Customer not found' });
-        return;
-      }
-      
       // Sales reps can only update their assigned customers
       if (customer.assignedSalesId?.toString() !== req.user?._id.toString()) {
         // Also check if they have any projects with this customer
@@ -169,6 +178,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
           $or: [
             { assignedSalesId: req.user?._id },
             { 'commission.bdcRepId': req.user?._id },
+            { 'commission.salesReps.userId': req.user?._id },
           ],
         });
         
@@ -179,35 +189,50 @@ router.put('/:id', async (req: AuthRequest, res) => {
       }
     }
     
-    const customer = await Customer.findByIdAndUpdate(
-      req.params.id,
-      {
-        ...req.body,
-        updatedBy: req.user?._id,
-      },
-      { new: true, runValidators: true }
-    ).populate('assignedSalesId', 'firstName lastName email')
-     .populate('updatedBy', 'firstName lastName');
-     
-    if (!customer) {
-      res.status(404).json({ error: 'Customer not found' });
-      return;
+    const oldData = customer.toObject();
+    
+    customer.set(req.body);
+    customer.updatedBy = req.user?._id;
+    
+    const changes = [];
+    for (const key in req.body) {
+      if (customer.schema.paths[key] && JSON.stringify((oldData as any)[key]) !== JSON.stringify(req.body[key])) {
+        changes.push({
+          field: key,
+          oldValue: (oldData as any)[key],
+          newValue: req.body[key]
+        });
+      }
     }
+    
+    const auditEntry = {
+      action: 'update',
+      userId: req.user!._id,
+      timestamp: new Date(),
+      changes
+    };
+    customer.auditLogs.push(auditEntry);
+    
+    await customer.save();
+    
+    const populatedCustomer = await Customer.findById(customer._id)
+      .populate('assignedSalesId', 'firstName lastName email')
+      .populate('updatedBy', 'firstName lastName');
     
     // Broadcast customer update to all connected clients
     const io = (req as any).io;
     if (io) {
       // Get all projects for this customer to notify their rooms
       const projects = await Project.find({ customerId: customer._id }).select('_id');
-      projects.forEach(project => {
+      projects.forEach((project: any) => {
         io.to(`project:${project._id}`).emit('customer:updated', {
           projectId: project._id,
-          customer: customer.toObject(),
+          customer: populatedCustomer?.toObject(),
         });
       });
     }
     
-    res.json(customer);
+    res.json(populatedCustomer);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update customer' });
   }
@@ -257,21 +282,40 @@ router.patch('/:id/assign', async (req: AuthRequest, res) => {
   try {
     const { assignedSalesId } = req.body;
     
-    const customer = await Customer.findByIdAndUpdate(
-      req.params.id,
-      {
-        assignedSalesId,
-        updatedBy: req.user?._id,
-      },
-      { new: true }
-    ).populate('assignedSalesId', 'firstName lastName email');
-    
+    const customer = await Customer.findById(req.params.id);
     if (!customer) {
       res.status(404).json({ error: 'Customer not found' });
       return;
     }
     
-    res.json(customer);
+    const oldAssigned = customer.assignedSalesId;
+    
+    customer.assignedSalesId = assignedSalesId;
+    customer.updatedBy = req.user?._id;
+    
+    const changes = [];
+    if (oldAssigned?.toString() !== assignedSalesId) {
+      changes.push({
+        field: 'assignedSalesId',
+        oldValue: oldAssigned,
+        newValue: assignedSalesId
+      });
+    }
+    
+    const auditEntry = {
+      action: 'update',
+      userId: req.user!._id,
+      timestamp: new Date(),
+      changes
+    };
+    customer.auditLogs.push(auditEntry);
+    
+    await customer.save();
+    
+    const populatedCustomer = await Customer.findById(customer._id)
+      .populate('assignedSalesId', 'firstName lastName email');
+    
+    res.json(populatedCustomer);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update assignment' });
   }

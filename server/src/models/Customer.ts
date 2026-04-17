@@ -13,6 +13,13 @@ export interface IContact {
   };
 }
 
+export interface IAuditLogEntry {
+  action: string;
+  userId: Types.ObjectId;
+  timestamp: Date;
+  changes: { field: string; oldValue: unknown; newValue: unknown }[];
+}
+
 export interface ICustomer extends Document {
   _id: Types.ObjectId;
   firstName: string;
@@ -23,6 +30,7 @@ export interface ICustomer extends Document {
   // Audit fields
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
+  auditLogs: IAuditLogEntry[];
   // Current assigned sales rep
   assignedSalesId?: Types.ObjectId;
   createdAt: Date;
@@ -45,6 +53,16 @@ const ContactSchema = new Schema<IContact>(
   { _id: false }
 );
 
+const AuditLogEntrySchema = new Schema(
+  {
+    action: { type: String, required: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    timestamp: { type: Date, default: Date.now },
+    changes: [{ field: String, oldValue: Schema.Types.Mixed, newValue: Schema.Types.Mixed }],
+  },
+  { _id: false }
+);
+
 const CustomerSchema = new Schema<ICustomer>(
   {
     firstName: { type: String, required: true },
@@ -55,6 +73,7 @@ const CustomerSchema = new Schema<ICustomer>(
     // Audit fields
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    auditLogs: { type: [AuditLogEntrySchema], default: [] },
     // Current assigned sales rep (for ongoing relationship)
     assignedSalesId: { type: Schema.Types.ObjectId, ref: 'User' },
   },
