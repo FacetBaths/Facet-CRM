@@ -8,9 +8,51 @@ Facet CRM is an internal full-stack CRM + POS replacement for Facet Renovations,
 
 - **Never commit directly to `master`**
 - Always create a feature branch before making changes: `omc-feat/<description>` or `omc-fix/<description>`
-- Commit frequently with descriptive messages
 - Do not open PRs or push to `master` without explicit instruction from the user
-- Include meaningful commit messages that explain *why*, not just *what*
+
+### Commit Frequency — REQUIRED
+
+Commit **after every discrete, working unit of change**. Do not accumulate work across multiple files or features before committing. Examples of commit triggers:
+- A new component or page is complete and renders without errors
+- A new API endpoint is wired up and returning correct responses
+- A Pinia store is created and connected to its page
+- A bug is fixed
+- A schema field is added with all compatibility changes applied
+- Any refactor that leaves the build in a passing state
+
+**If you have been working for more than ~15 minutes without committing, stop and commit what works.**
+
+### Commit Message Format — REQUIRED
+
+Use the conventional commit format: `type(scope): short summary`
+
+Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `style`
+
+The body is **mandatory** — never commit with just a subject line. Every commit body must answer:
+1. **What** changed (list the files and what each does)
+2. **Why** it was changed or what problem it solves
+3. Any **caveats** — incomplete wiring, known issues, follow-up needed
+
+**Good example:**
+```
+feat(subscriptions): Radiance billing dashboard
+
+- SubscriptionsPage.vue — filterable list of active/paused/cancelled
+  subscriptions; upcoming renewal alerts for next 7 days highlighted
+- SubscriptionCard.vue — plan, billing frequency, next bill date,
+  service history, payment status
+- subscriptionStore.ts — Pinia store for GET/POST/PUT /api/subscriptions
+  and /dashboard/upcoming renewal alerts endpoint
+
+Covers priority item #6 from PROJECT_ROADMAP.md.
+```
+
+**Bad examples (do not do this):**
+```
+git commit -m "updates"
+git commit -m "WIP"
+git commit -m "fix stuff"
+```
 
 ---
 
