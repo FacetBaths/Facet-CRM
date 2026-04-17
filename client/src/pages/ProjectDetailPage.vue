@@ -577,32 +577,38 @@
     </q-dialog>
 
     <!-- Add Note Dialog -->
-    <q-dialog v-model="showAddNote" persistent>
-      <q-card style="min-width: 500px" class="glass-card">
-        <q-card-section>
-          <div class="text-h6">Add Note</div>
-        </q-card-section>
-        <q-card-section>
-          <q-input
-            v-model="newNote"
-            type="textarea"
-            label="Note"
-            outlined
-            autogrow
-            rows="3"
-          />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" v-close-popup />
-          <q-btn
-            color="primary"
-            label="Add Note"
-            @click="addNote"
-            :loading="adding"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+<q-dialog v-model="showAddNote" persistent :full-width="$q.screen.lt.sm" :maximized="$q.screen.lt.sm">
+       <q-card class="glass-card q-pa-md" style="max-width: 600px; width: 100%;">
+         <q-card-section class="row items-center">
+           <q-space />
+           <div class="text-h6">Add Note</div>
+           <q-space />
+           <q-btn icon="close" flat round dense v-close-popup />
+         </q-card-section>
+         <q-separator />
+         <q-card-section>
+           <q-input
+             v-model="newNote"
+             type="textarea"
+             label="Note"
+             outlined
+             autogrow
+             rows="3"
+             class="full-width"
+           />
+         </q-card-section>
+         <q-card-actions align="right" class="q-px-md q-pb-md">
+           <q-btn flat label="Cancel" v-close-popup color="grey" />
+           <q-btn
+             color="primary"
+             label="Add Note"
+             @click="addNote"
+             :loading="adding"
+             unelevated
+           />
+         </q-card-actions>
+       </q-card>
+     </q-dialog>
 
     <!-- Add Task Dialog -->
     <q-dialog v-model="showAddTask" persistent>

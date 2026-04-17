@@ -1,0 +1,66 @@
+// src/css/theme.scss - Centralized design system for Facet CRM
+
+// Color Palette
+$primary: #9945FF;    // Purple
+$secondary: #14F195;  // Green
+$accent: #9C27B0;     // Magenta
+$dark: #1D1D1D;
+$glass-bg: rgba(255, 255, 255, 0.25);
+$glass-border: rgba(255, 255, 255, 0.3);
+
+// Status Colors
+$status-prospect: #2196F3;     // Blue
+$status-customer: #FF9800;     // Orange
+$status-production: #9C27B0;   // Purple
+$status-install: #14F195;      // Green
+$status-completed: #21BA45;    // Green
+$status-cancelled: #C10015;    // Red
+
+// Activity Feed Colors
+$activity-note: #9945FF;       // Purple
+$activity-status: #14F195;     // Green
+$activity-task: #31CCEC;       // Cyan
+$activity-payment: #21BA45;    // Green
+$activity-call: #F2C037;       // Amber
+
+// Glassmorphism
+.glass-card {
+  background: $glass-bg;
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid $glass-border;
+}
+
+// Gradient Background
+.gradient-bg {
+  min-height: 100vh;
+  background: linear-gradient(135deg, $primary, #ffffff, $secondary);
+  background-size: 400% 400%;
+  animation: gradientAnimation 15s ease infinite;
+}
+
+@keyframes gradientAnimation {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+// Typography
+body {
+  font-family: 'Tomorrow', sans-serif;
+}
+
+// Responsive Mixins
+@mixin mobile {
+  @media (max-width: 600px) { @content; }
+}
+
+@mixin tablet {
+  @media (min-width: 601px) and (max-width: 1024px) { @content; }
+}
+
+@mixin desktop {
+  @media (min-width: 1025px) { @content; }
+}
