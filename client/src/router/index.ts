@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'; // Removed invalid import
+import { defineRouter } from '#q-app/wrappers';
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
