@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { api } from '@/boot/axios';
 import { connectSocket, disconnectSocket, joinUserRoom } from '@/boot/socket';
 
-export type UserRole = 'admin' | 'bdc' | 'sales' | 'warehouse' | 'production' | 'contractor' | 'manager' | 'installer';
+export type UserRole = 'admin' | 'bdc' | 'sales' | 'warehouse' | 'production' | 'contractor' | 'manager' | 'installer' | 'design_consultant';
 
 interface User {
   _id: string;

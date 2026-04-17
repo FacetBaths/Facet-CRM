@@ -10,12 +10,7 @@
             :key="group.status"
             class="col-12 col-sm-6 col-md-4 col-lg-2"
           >
-            <q-card
-              class="pipeline-summary-card cursor-pointer"
-              :class="`bg-${group.color}`"
-              flat
-              @click="$router.push('/projects/pipeline')"
-            >
+            <q-card :class="['glass-card', 'pipeline-summary-card', 'cursor-pointer', `bg-${group.color}`]" @click="$router.push('/projects/pipeline')">
               <q-card-section class="text-white">
                 <div class="text-caption text-weight-medium opacity-80">{{ group.label }}</div>
                 <div class="text-h4 text-weight-bold q-my-sm">{{ group.count }}</div>
@@ -33,7 +28,7 @@
 
       <!-- Stats Cards -->
       <div class="col-12 col-md-3">
-        <q-card class="dashboard-card" flat bordered>
+        <q-card :class="['glass-card', 'dashboard-card']">
           <q-card-section>
             <div class="text-subtitle2 text-grey-6">Active Projects</div>
             <div class="text-h4 text-primary">{{ stats.activeProjects }}</div>
@@ -41,7 +36,7 @@
         </q-card>
       </div>
       <div class="col-12 col-md-3">
-        <q-card class="dashboard-card" flat bordered>
+        <q-card :class="['glass-card', 'dashboard-card']">
           <q-card-section>
             <div class="text-subtitle2 text-grey-6">Pending Tasks</div>
             <div class="text-h4 text-warning">{{ stats.pendingTasks }}</div>
@@ -49,7 +44,7 @@
         </q-card>
       </div>
       <div class="col-12 col-md-3">
-        <q-card class="dashboard-card" flat bordered>
+        <q-card :class="['glass-card', 'dashboard-card']">
           <q-card-section>
             <div class="text-subtitle2 text-grey-6">This Month Revenue</div>
             <div class="text-h4 text-secondary">${{ formatCurrency(stats.monthlyRevenue) }}</div>
@@ -57,7 +52,7 @@
         </q-card>
       </div>
       <div class="col-12 col-md-3">
-        <q-card class="dashboard-card" flat bordered>
+        <q-card :class="['glass-card', 'dashboard-card']">
           <q-card-section>
             <div class="text-subtitle2 text-grey-6">Active Subscriptions</div>
             <div class="text-h4 text-info">{{ stats.activeSubscriptions }}</div>
@@ -67,7 +62,7 @@
 
       <!-- Recent Projects -->
       <div class="col-12 col-md-8">
-        <q-card flat bordered>
+        <q-card class="glass-card">
           <q-card-section class="row items-center justify-between">
             <div class="text-h6">Recent Projects</div>
             <q-btn color="primary" label="View All" to="/projects" flat />
@@ -98,7 +93,7 @@
 
       <!-- Upcoming Renewals -->
       <div class="col-12 col-md-4">
-        <q-card flat bordered>
+        <q-card class="glass-card">
           <q-card-section>
             <div class="text-h6">Upcoming Renewals</div>
           </q-card-section>

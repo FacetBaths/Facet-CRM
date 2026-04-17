@@ -2,7 +2,7 @@
   <q-page class="q-pa-md">
     <div class="row items-center justify-between q-mb-md">
       <div class="text-h5">Projects</div>
-      <q-btn color="primary" icon="add" label="New Project" @click="showNewProjectDialog = true" />
+      <q-btn v-if="canCreateProject" color="primary" icon="add" label="New Project" @click="showNewProjectDialog = true" />
     </div>
 
     <!-- Filters -->
@@ -45,16 +45,8 @@
     </div>
 
     <!-- Projects Table -->
-    <q-card flat bordered>
-      <q-table
-        :rows="projectStore.projects"
-        :columns="columns"
-        row-key="_id"
-        :loading="projectStore.isLoading"
-        flat
-        dense
-        @row-click="(evt, row) => $router.push(`/projects/${row._id}`)"
-      >
+    <q-card class="glass-card">
+      <q-table :rows="projectStore.projects" :columns="columns" row-key="_id" :loading="projectStore.isLoading" dense @row-click="onRowClick" >
         <template v-slot:body-cell-status="{ row }">
           <q-td>
             <q-badge :color="statusColor(row.status)">
@@ -77,7 +69,7 @@
 
     <!-- New Project Dialog -->
     <q-dialog v-model="showNewProjectDialog" persistent>
-      <q-card style="min-width: 500px">
+      <q-card style="min-width: 500px" class="glass-card">
         <q-card-section class="row items-center">
           <div class="text-h6">New Project</div>
           <q-space />
@@ -120,6 +112,7 @@
             />
 
             <q-input v-model="newProject.address.street" label="Street Address" outlined required />
+
             <div class="row q-col-gutter-sm">
               <div class="col-6">
                 <q-input v-model="newProject.address.city" label="City" outlined required />
@@ -162,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useProjectStore } from '@/stores/projects';
 import { useCustomerStore } from '@/stores/customers';
@@ -175,8 +168,12 @@ const projectStore = useProjectStore();
 const customerStore = useCustomerStore();
 const userStore = useUserStore();
 
+const onRowClick = (evt, row) => router.push(`/projects/${row._id}`);
+
 const showNewProjectDialog = ref(false);
 const creating = ref(false);
+
+const canCreateProject = computed(() => userStore.user?.roles?.some(role => ['admin', 'manager', 'sales'].includes(role)) || false);
 
 const newProject = reactive({
   customerId: '',
@@ -237,36 +234,30 @@ const typeOptions = [
 ];
 
 const formatStatus = (status: string) => {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  return status.replace(/_/g, ' ').replace(new RegExp('\\b\\w', 'g'), l => l.toUpperCase());
 };
 
 const statusColor = (status: string) => {
   const colors: Record<string, string> = {
-    // Prospect
     lead: 'grey-7',
     appointment: 'info',
     rehash_multitouch: 'info',
     contract_sent: 'warning',
-    // Customer
     contract_signed: 'positive',
     funding_cleared: 'warning',
     deal_scrub_in_progress: 'warning',
     change_order_needed: 'warning',
     deal_scrub_complete: 'positive',
-    // Production
     materials_ordered: 'accent',
     materials_released: 'accent',
     materials_received: 'accent',
-    // Install
     install_contacted: 'secondary',
     install_in_progress: 'secondary',
     install_hung: 'secondary',
     install_complete_service_needed: 'orange',
     install_complete: 'positive',
-    // Completed
     funding_received: 'positive',
     completed: 'positive',
-    // Legacy
     qualified: 'info',
     design_scheduled: 'primary',
     production_scheduled: 'accent',

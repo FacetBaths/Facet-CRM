@@ -9,7 +9,7 @@
     "dev": "./node_modules/.bin/quasar dev",
     "build": "quasar build",
     "build:pwa": "quasar build -m pwa",
-    "lint": "eslint --ext .js,.ts,.vue ./",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint --ext .js,.ts,.vue ./",
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0"
   },
@@ -27,12 +27,14 @@
     "@types/node": "^20.10.4",
     "@typescript-eslint/eslint-plugin": "^8.58.2",
     "@typescript-eslint/parser": "^8.58.2",
+    "@vue/eslint-config-typescript": "^14.7.0",
     "autoprefixer": "^10.4.16",
-    "eslint": "^8.56.0",
+    "eslint": "^9.39.4",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-vue": "^9.19.2",
+    "eslint-plugin-vue": "^9.33.0",
+    "playwright": "^1.59.1",
     "prettier": "^3.1.1",
-    "typescript": "^5.3.3",
+    "typescript": "^5.9.3",
     "vite-plugin-checker": "^0.6.2"
   },
   "engines": {

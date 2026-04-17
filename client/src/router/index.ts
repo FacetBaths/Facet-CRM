@@ -1,4 +1,4 @@
-import { defineRouter } from '#q-app/wrappers';
+import { createRouter, createWebHistory } from 'vue-router'; // Removed invalid import
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
@@ -9,7 +9,7 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
-    path: '/',
+    path: '/',  
     component: () => import('@/layouts/MainLayout.vue'),
     children: [
       {

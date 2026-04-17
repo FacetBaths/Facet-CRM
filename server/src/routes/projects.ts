@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { Project } from '../models/Project';
+import Project from '../models/Project';
 import { AuthRequest, requireRole } from '../middleware/auth';
 import { io } from '../index';
 import multer from 'multer';
@@ -55,6 +55,60 @@ const filterByUserRole = async (req: AuthRequest, res: Response, next: Function)
   }
   
   next();
+};
+
+const auditMiddleware = (handler: (req: AuthRequest, res: Response) => Promise<void>) => async (req: AuthRequest, res: Response) => {
+  let oldData = null;
+  const projectId = req.params.id;
+  try {
+    if (projectId) {
+      const oldProject = await Project.findById(projectId);
+      oldData = oldProject ? oldProject.toObject() : null;
+    }
+
+    await handler(req, res);
+
+    let newProject;
+    if (projectId) {
+      newProject = await Project.findById(projectId);
+    } else if (req.newProject) {
+      newProject = req.newProject;
+    } else {
+      return;
+    }
+
+    if (newProject && req.user) {
+      const newData = newProject.toObject();
+      const changes = simpleDiff(oldData || {}, newData);
+
+      if (changes.length > 0) {
+        const auditEntry = {
+          timestamp: new Date(),
+          userId: req.user._id,
+          action: projectId ? `${req.method} ${req.path}` : 'create',
+          changes,
+        };
+        newProject.auditLogs.push(auditEntry);
+        await newProject.save();
+        io.to(`project:${newProject._id}`).emit('project:updated', newProject);
+      }
+    }
+  } catch (error) {
+    console.error('Audit error:', error);
+  }
+};
+
+const simpleDiff = (oldObj: any, newObj: any): { field: string; oldValue: any; newValue: any }[] => {
+  const changes: { field: string; oldValue: any; newValue: any }[] = [];
+  const allKeys = new Set([...Object.keys(oldObj || {}), ...Object.keys(newObj || {})]);
+  for (const key of allKeys) {
+    const oldVal = oldObj ? oldObj[key] : undefined;
+    const newVal = newObj ? newObj[key] : undefined;
+    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+      changes.push({ field: key, oldValue: oldVal, newValue: newVal });
+    }
+  }
+  return changes;
 };
 
 // Get projects by customer ID
@@ -146,6 +200,52 @@ router.get('/:id', filterByUserRole, async (req: AuthRequest, res) => {
   }
 });
 
+// Get project audit logs with pagination and filters
+router.get('/:id/audit-logs', filterByUserRole, async (req: AuthRequest, res) => {
+  try {
+    const roleFilter = (req as any).roleFilter || {};
+    const project = await Project.findOne({ _id: req.params.id, ...roleFilter }).select('auditLogs');
+
+    if (!project) {
+      res.status(404).json({ error: 'Project not found or access denied' });
+      return;
+    }
+
+    let logs = project.auditLogs;
+
+    const { startDate, endDate, action, page = 1, limit = 20 } = req.query;
+    if (startDate) {
+      logs = logs.filter(l => l.timestamp >= new Date(startDate as string));
+    }
+    if (endDate) {
+      logs = logs.filter(l => l.timestamp <= new Date(endDate as string));
+    }
+    if (action) {
+      logs = logs.filter(l => l.action === action as string);
+    }
+
+    logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    const startIndex = (Number(page) - 1) * Number(limit);
+    const endIndex = startIndex + Number(limit);
+    const paginatedLogs = logs.slice(startIndex, endIndex);
+
+    const populatedLogs = await Project.populate(paginatedLogs, {
+      path: 'userId',
+      select: 'firstName lastName email avatar'
+    });
+
+    res.json({
+      logs: populatedLogs,
+      total: logs.length,
+      page: Number(page),
+      limit: Number(limit)
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+});
+
 // Create project
 router.post(
   '/',
@@ -158,7 +258,7 @@ router.post(
     body('address.state').notEmpty(),
     body('address.zip').notEmpty(),
   ],
-  async (req: AuthRequest, res: Response) => {
+  auditMiddleware(async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -190,15 +290,16 @@ router.post(
         .populate('createdBy', 'firstName lastName')
         .populate('assignedSalesId', 'firstName lastName');
         
+      req.newProject = populatedProject;
       res.status(201).json(populatedProject);
     } catch (error) {
       res.status(500).json({ error: 'Failed to create project' });
     }
-  }
+  })
 );
 
 // Update project with audit
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const oldProject = await Project.findById(req.params.id);
     if (!oldProject) {
@@ -261,10 +362,10 @@ router.put('/:id', async (req: AuthRequest, res) => {
     console.error('Failed to update project:', error);
     res.status(500).json({ error: 'Failed to update project', details: error.message });
   }
-});
+})); 
 
 // Add activity/note with audit
-router.post('/:id/activities', async (req: AuthRequest, res) => {
+router.post('/:id/activities', auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { type, content } = req.body;
     
@@ -298,10 +399,10 @@ router.post('/:id/activities', async (req: AuthRequest, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to add activity' });
   }
-});
+})); 
 
 // Add task with audit
-router.post('/:id/tasks', async (req: AuthRequest, res) => {
+router.post('/:id/tasks', auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { title, description, assignedTo, dueDate } = req.body;
     
@@ -334,10 +435,10 @@ router.post('/:id/tasks', async (req: AuthRequest, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to add task' });
   }
-});
+})); 
 
 // Update task with audit
-router.put('/:id/tasks/:taskId', async (req: AuthRequest, res) => {
+router.put('/:id/tasks/:taskId', auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { status } = req.body;
     
@@ -375,10 +476,10 @@ router.put('/:id/tasks/:taskId', async (req: AuthRequest, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to update task' });
   }
-});
+})); 
 
 // Add payment with audit
-router.post('/:id/payments', async (req: AuthRequest, res) => {
+router.post('/:id/payments', auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { amount, type, method, notes } = req.body;
     
@@ -431,10 +532,10 @@ router.post('/:id/payments', async (req: AuthRequest, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to add payment' });
   }
-});
+})); 
 
 // Edit payment with audit
-router.put('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
+router.put('/:id/payments/:paymentId', auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { amount, type, method, notes, correctionReason } = req.body;
     
@@ -489,10 +590,10 @@ router.put('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     console.error('Edit payment error:', error);
     res.status(500).json({ error: 'Failed to update payment', details: (error as Error).message });
   }
-});
+})); 
 
 // Delete/void payment with audit
-router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
+router.delete('/:id/payments/:paymentId', auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { voidReason } = req.body;
     
@@ -545,10 +646,10 @@ router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res) => {
     console.error('Void payment error:', error);
     res.status(500).json({ error: 'Failed to void payment', details: (error as Error).message });
   }
-});
+})); 
 
 // Add expense with audit
-router.post('/:id/expenses', async (req: AuthRequest, res) => {
+router.post('/:id/expenses', auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const expense = {
       ...req.body,
@@ -573,10 +674,10 @@ router.post('/:id/expenses', async (req: AuthRequest, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to add expense' });
   }
-});
+})); 
 
 // Create change order with audit
-router.post('/:id/change-orders', async (req: AuthRequest, res) => {
+router.post('/:id/change-orders', auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { description, reason, amount } = req.body;
     
@@ -610,10 +711,10 @@ router.post('/:id/change-orders', async (req: AuthRequest, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to create change order' });
   }
-});
+})); 
 
 // Respond to change order with audit
-router.put('/:id/change-orders/:coId', requireRole('admin'), async (req: AuthRequest, res) => {
+router.put('/:id/change-orders/:coId', requireRole('admin'), auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { status } = req.body;
     
@@ -653,10 +754,10 @@ router.put('/:id/change-orders/:coId', requireRole('admin'), async (req: AuthReq
   } catch (error) {
     res.status(500).json({ error: 'Failed to respond to change order' });
   }
-});
+})); 
 
 // Calculate commission with audit
-router.post('/:id/calculate-commission', requireRole('admin'), async (req: AuthRequest, res) => {
+router.post('/:id/calculate-commission', requireRole('admin'), auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { salesRepIds = [], useFlatRate = false, splitPercentages = [] } = req.body;
     
@@ -736,10 +837,10 @@ router.post('/:id/calculate-commission', requireRole('admin'), async (req: AuthR
   } catch (error) {
     res.status(500).json({ error: 'Failed to calculate commission' });
   }
-});
+})); 
 
 // Add spiff/bonus with audit
-router.post('/:id/spiffs', async (req: AuthRequest, res) => {
+router.post('/:id/spiffs', auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { description, amount, awardedTo } = req.body;
     
@@ -769,10 +870,10 @@ router.post('/:id/spiffs', async (req: AuthRequest, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to add spiff' });
   }
-});
+})); 
 
 // Mark commission as paid with audit
-router.put('/:id/commission/pay', requireRole('admin'), async (req: AuthRequest, res) => {
+router.put('/:id/commission/pay', requireRole('admin'), auditMiddleware(async (req: AuthRequest, res) => {
   try {
     const { type, userId, spiffIndex } = req.body;
     
@@ -825,7 +926,7 @@ router.put('/:id/commission/pay', requireRole('admin'), async (req: AuthRequest,
   } catch (error) {
     res.status(500).json({ error: 'Failed to mark commission as paid' });
   }
-});
+})); 
 
 // Get commission report (admin only)
 router.get('/commissions/report', requireRole('admin'), async (req: AuthRequest, res) => {

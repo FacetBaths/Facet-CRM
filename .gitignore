@@ -43,3 +43,17 @@ coverage/
 # Temp files
 *.tmp
 .cache/
+
+# Quasar build artifacts
+client/.quasar/
+
+# AI agent artifacts
+.sisyphus/
+.playwright-mcp/
+
+# Compiled config temps
+*.temporary.compiled.*.mjs
+
+# Screenshots / test scripts
+*.png
+client/test-vendors.js
