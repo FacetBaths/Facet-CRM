@@ -17,12 +17,12 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "moduleResolution": "node",
+    "moduleResolution": "node",\n    "types": ["node", "jest"]
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "__tests__/**/*", "jest.config.ts", "jest.setup.ts", "src/types/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
