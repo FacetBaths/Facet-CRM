@@ -388,6 +388,23 @@ Compatibility checklist:
 
 ---
 
+## Known Pitfalls — Vue File Generation
+
+These encoding bugs have appeared in agent-generated `.vue` files and **must be checked before committing:**
+
+- **HTML-entity encoding** — If a file contains `&lt;`, `&gt;`, `&quot;` instead of `<`, `>`, `"`, the Vue compiler will not find a `<template>` or `<script>` block. Decode before saving.
+- **Literal `\n` in script blocks** — Collapsed multiline code written as `const a = 1;\nconst b = 2;` causes a parser error. These must be actual newlines.
+- **Escaped quotes as delimiters** — `\"string\"` is invalid as an outer string delimiter in JS/TS. Use `"string"` instead.
+- **Non-existent Quasar date utilities** — `date.isBefore()` and `date.isAfter()` do not exist in Quasar. Use native `new Date(a) < new Date(b)` comparisons instead.
+- **New routes must be registered** — Adding a route file is not enough. Every new route must be mounted in `server/src/index.ts` with `app.use('/api/<path>', authMiddleware, router)`.
+
+**After writing any new `.vue` file, verify:**
+```bash
+cd client && npm run build  # must exit 0
+```
+
+---
+
 ## Do Not
 
 - Do not break the glassmorphism design — it is a core brand requirement
