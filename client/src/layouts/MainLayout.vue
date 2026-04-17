@@ -96,6 +96,7 @@ const navTabs = computed(() => {
     { path: '/', label: 'Dashboard', icon: 'dashboard' },
     { path: '/projects/pipeline', label: 'Pipeline', icon: 'view_kanban' },
     { path: '/projects', label: 'Projects', icon: 'assignment' },
+    { path: '/calendar', label: 'Calendar', icon: 'calendar_today' },
     { path: '/customers', label: 'Customers', icon: 'people' },
     { path: '/subscriptions', label: 'Subscriptions', icon: 'autorenew' },
     { path: '/products', label: 'Products', icon: 'inventory_2' },

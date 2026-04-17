@@ -3,6 +3,9 @@ import { body, validationResult } from 'express-validator';
 import { Project } from '../models/Project';
 import { AuthRequest, requireRole } from '../middleware/auth';
 import { io } from '../index';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
 
@@ -130,7 +133,8 @@ router.get('/:id', filterByUserRole, async (req: AuthRequest, res) => {
       .populate('updatedBy', 'firstName lastName email avatar')
       .populate('changeOrders.requestedBy', 'firstName lastName avatar')
       .populate('changeOrders.respondedBy', 'firstName lastName avatar')
-      .populate('payments.recordedBy', 'firstName lastName avatar');
+      .populate('payments.recordedBy', 'firstName lastName avatar')
+.populate('attachments.uploadedBy', 'firstName lastName avatar');
       
     if (!project) {
       res.status(404).json({ error: 'Project not found or access denied' });
@@ -884,61 +888,86 @@ router.get('/commissions/report', requireRole('admin'), async (req: AuthRequest,
   }
 });
 
-// Get dashboard stats (role-based)
-router.get('/stats/dashboard', async (req: AuthRequest, res) => {
+// Get dashboard stats (role-based)\nrouter.get('/stats/dashboard', async (req: AuthRequest, res) => {\n  try {\n    const user = req.user;\n    if (!user) {\n      res.status(401).json({ error: 'Unauthorized' });\n      return;\n    }\n    \n    let query: any = {};\n    \n    // Filter by role\n    if (!user.roles?.includes('admin')) {\n      query = {\n        $or: [\n          { assignedSalesId: user._id },\n          { 'commission.bdcRepId': user._id },\n          { 'commission.salesReps.userId': user._id },\n        ],\n      };\n    }\n    \n    const [totalProjects, activeProjects, pendingTasks, totalContractValue] = await Promise.all([\n      Project.countDocuments(query),\n      Project.countDocuments({ ...query, status: { $nin: ['completed', 'cancelled'] } }),\n      Project.aggregate([\n        { $match: query },\n        { $unwind: '$tasks' },\n        { $match: { 'tasks.status': { $in: ['pending', 'in_progress'] } } },\n        { $count: 'count' },\n      ]).then(r => r[0]?.count || 0),\n      Project.aggregate([\n        { $match: query },\n        { $group: { _id: null, total: { $sum: '$contractAmount' } } },\n      ]).then(r => r[0]?.total || 0),\n    ]);\n    \n    // Get projects by status for chart\n    const projectsByStatus = await Project.aggregate([\n      { $match: query },\n      { $group: { _id: '$status', count: { $sum: 1 } } },\n    ]);\n    \n    res.json({\n      totalProjects,\n      activeProjects,\n      pendingTasks,\n      totalContractValue,\n      projectsByStatus: projectsByStatus.reduce((acc, curr) => {\n        acc[curr._id] = curr.count;\n        return acc;\n      }, {} as Record<string, number>),\n    });\n  } catch (error) {\n    res.status(500).json({ error: 'Failed to fetch dashboard stats' });\n  }\n});\n\nrouter.get('/:id/pnl', filterByUserRole, requireRole('admin', 'manager'), async (req: AuthRequest, res: Response) => {\n  try {\n    const project = await Project.findById(req.params.id);\n    if (!project) {\n      return res.status(404).json({ error: 'Project not found' });\n    }\n\n    const approvedChanges = project.changeOrders\n      .filter(co => co.status === 'approved')\n      .reduce((sum, co) => sum + co.amount, 0);\n    const totalRevenue = project.contractAmount + approvedChanges;\n\n    const receivedPayments = project.payments\n      .filter(p => !p.voided)\n      .reduce((sum, p) => sum + p.amount, 0);\n\n    const totalExpenses = project.expenses.reduce((sum, exp) => sum + exp.amount, 0);\n    const laborCosts = project.expenses\n      .filter(exp => exp.category === 'labor')\n      .reduce((sum, exp) => sum + exp.amount, 0);\n    const otherExpenses = totalExpenses - laborCosts;\n\n    const commissionCosts = project.commission.salesReps.reduce((sum, rep) => sum + rep.amount, 0) +\n      (project.commission.bdcAmount || 0) +\n      project.commission.spiffs.reduce((sum, spiff) => sum + spiff.amount, 0);\n\n    const totalCosts = totalExpenses + commissionCosts;\n    const profit = totalRevenue - totalCosts;\n\n    res.json({\n      totalRevenue,\n      receivedPayments,\n      totalCosts,\n      laborCosts,\n      otherExpenses,\n      commissionCosts,\n      profit\n    });\n  } catch (error) {\n    res.status(500).json({ error: 'Failed to calculate PnL' });\n  }\n});\n\n
+
+// @ts-ignore
+const storage = multer.diskStorage({
+  // @ts-ignore
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../../uploads/projects', req.params.id as string);
+    fs.mkdirSync(uploadPath, { recursive: true });
+    cb(null, uploadPath);
+  },
+  // @ts-ignore
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+
+const upload = multer({ 
+  storage, 
+  limits: { fileSize: 5 * 1024 * 1024 },
+  // @ts-ignore
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|pdf/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPG, PNG, PDF allowed.'));
+    }
+  }
+});
+
+// @ts-ignore
+router.post('/:id/uploads', filterByUserRole, upload.single('file'), async (req: AuthRequest, res) => {
   try {
-    const user = req.user;
-    if (!user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+    const file = req.file as any;
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
     }
-    
-    let query: any = {};
-    
-    // Filter by role
-    if (!user.roles?.includes('admin')) {
-      query = {
-        $or: [
-          { assignedSalesId: user._id },
-          { 'commission.bdcRepId': user._id },
-          { 'commission.salesReps.userId': user._id },
-        ],
-      };
+
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      fs.unlinkSync(file.path);
+      return res.status(404).json({ error: 'Project not found' });
     }
-    
-    const [totalProjects, activeProjects, pendingTasks, totalContractValue] = await Promise.all([
-      Project.countDocuments(query),
-      Project.countDocuments({ ...query, status: { $nin: ['completed', 'cancelled'] } }),
-      Project.aggregate([
-        { $match: query },
-        { $unwind: '$tasks' },
-        { $match: { 'tasks.status': { $in: ['pending', 'in_progress'] } } },
-        { $count: 'count' },
-      ]).then(r => r[0]?.count || 0),
-      Project.aggregate([
-        { $match: query },
-        { $group: { _id: null, total: { $sum: '$contractAmount' } } },
-      ]).then(r => r[0]?.total || 0),
-    ]);
-    
-    // Get projects by status for chart
-    const projectsByStatus = await Project.aggregate([
-      { $match: query },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
-    ]);
-    
-    res.json({
-      totalProjects,
-      activeProjects,
-      pendingTasks,
-      totalContractValue,
-      projectsByStatus: projectsByStatus.reduce((acc, curr) => {
-        acc[curr._id] = curr.count;
-        return acc;
-      }, {} as Record<string, number>),
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+
+    const attachment = {
+      filename: file.originalname,
+      path: file.path,
+      mimeType: file.mimetype,
+      size: file.size,
+      // @ts-ignore
+      type: (req.body.type as 'contract' | 'photo' | 'other') || 'other',
+      uploadedBy: req.user!._id,
+      uploadedAt: new Date(),
+    };
+
+    project.attachments.push(attachment);
+    project.updatedBy = req.user!._id;
+    await project.save();
+
+    const addedAttachment = project.attachments[project.attachments.length - 1];
+
+    const activity = {
+      type: 'file_upload' as const,
+      content: `File uploaded: ${file.originalname}`,
+      userId: req.user!._id,
+      timestamp: new Date(),
+      metadata: { attachmentId: addedAttachment._id }
+    };
+    project.activities.push(activity);
+    await project.save();
+
+    io.to(`project:${req.params.id}`).emit('project:activity', activity);
+    io.to(`project:${req.params.id}`).emit('project:updated', project);
+
+    res.json(addedAttachment);
+  } catch (error: any) {
+    if (req.file?.path) fs.unlinkSync(req.file.path);
+    res.status(500).json({ error: 'Failed to upload file', details: error.message });
   }
 });
 

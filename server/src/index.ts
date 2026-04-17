@@ -31,6 +31,7 @@ import subscriptionRoutes from './routes/subscriptions';
 import commissionRoutes from './routes/commissions';
 import companyRoutes from './routes/company';
 import notificationRoutes from './routes/notifications';
+import { syncEmails } from './routes/emails';
 
 dotenv.config();
 
@@ -129,6 +130,10 @@ const startServer = async () => {
   httpServer.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
   });
+
+  setInterval(() => {
+  syncEmails().catch(err => console.error('Email sync error:', err));
+}, 5 * 60 * 1000);
 };
 
 startServer();

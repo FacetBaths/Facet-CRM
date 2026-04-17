@@ -2,6 +2,23 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { api } from '@/boot/axios';
 
+interface Change {
+  field: string;
+  oldValue: any;
+  newValue: any;
+}
+
+interface AuditLog {
+  _id: string;
+  timestamp: string;
+  userId: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+  };
+  changes: Change[];
+}
+
 interface Project {
   _id: string;
   projectNumber: string;
@@ -19,6 +36,7 @@ interface Project {
   };
   leadDate: string;
   updatedAt: string;
+  auditTrail?: AuditLog[];
 }
 
 export const useProjectStore = defineStore('projects', () => {
@@ -195,7 +213,20 @@ export const useProjectStore = defineStore('projects', () => {
     }
   };
 
-  const calculateCommission = async (projectId: string) => {
+  const fetchAuditTrail = async (id: string) => {
+  try {
+    const { data } = await api.get(`/projects/${id}/audit`);
+    if (currentProject.value?._id === id) {
+      currentProject.value.auditTrail = data;
+    }
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch audit trail:', error);
+    throw error;
+  }
+};
+
+const calculateCommission = async (projectId: string) => {
     try {
       const { data } = await api.post(`/projects/${projectId}/calculate-commission`);
       if (currentProject.value?._id === projectId) {
@@ -223,6 +254,7 @@ export const useProjectStore = defineStore('projects', () => {
     addPayment,
     updatePayment,
     voidPayment,
+    fetchAuditTrail,
     calculateCommission,
   };
 });

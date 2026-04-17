@@ -1,14 +1,49 @@
-import { Router } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { Subscription } from '../models/Subscription';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, requireRole } from '../middleware/auth';
+
+import { Project } from '../models/Project';
+import { Customer } from '../models/Customer';
+
 
 const router = Router();
 
+const filterByUserRole = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (req.user.roles?.includes('admin')) {
+    return next();
+  }
+
+  let allowedCustomerIds: string[] = [];
+
+  if (req.user.roles?.includes('sales') || req.user.roles?.includes('bdc')) {
+    const assignedCustomers = await Customer.find({ assignedSalesId: req.user._id }).select('_id');
+    allowedCustomerIds = assignedCustomers.map(c => c._id.toString());
+
+    const projects = await Project.find({
+      $or: [
+        { assignedSalesId: req.user._id },
+        { 'commission.bdcRepId': req.user._id },
+        { 'commission.salesReps.userId': req.user._id },
+      ],
+    }).select('customerId');
+
+    const projectCustomerIds = projects.map(p => p.customerId.toString());
+    allowedCustomerIds = [...new Set([...allowedCustomerIds, ...projectCustomerIds])];
+  }
+
+  (req as any).roleFilter = { customerId: { $in: allowedCustomerIds } };
+  next();
+};
+
 // Get all subscriptions
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', filterByUserRole, async (req: AuthRequest, res) => {
   try {
     const { status, plan, customerId } = req.query;
-    let query: any = {};
+    let query: any = { ...(req as any).roleFilter || {} };
     
     if (status) query.status = status;
     if (plan) query.plan = plan;
@@ -25,15 +60,17 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 // Get subscription by ID
-router.get('/:id', async (req: AuthRequest, res) => {
+router.get('/:id', filterByUserRole, async (req: AuthRequest, res) => {
   try {
-    const subscription = await Subscription.findById(req.params.id)
+    const query = { _id: req.params.id, ...(req as any).roleFilter || {} };
+
+const subscription = await Subscription.findOne(query)
       .populate('customerId')
       .populate('services.assignedTo', 'firstName lastName')
       .populate('payments.recordedBy', 'firstName lastName');
       
     if (!subscription) {
-      res.status(404).json({ error: 'Subscription not found' });
+      res.status(404).json({ error: 'Subscription not found or access denied' });
       return;
     }
     res.json(subscription);
@@ -43,7 +80,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 });
 
 // Create subscription
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', requireRole('admin', 'sales', 'bdc'), async (req: AuthRequest, res) => {
   try {
     const { customerId, plan, billingFrequency } = req.body;
     
@@ -74,7 +111,7 @@ router.post('/', async (req: AuthRequest, res) => {
 });
 
 // Update subscription
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', requireRole('admin', 'sales', 'bdc'), async (req: AuthRequest, res) => {
   try {
     const subscription = await Subscription.findByIdAndUpdate(
       req.params.id,
@@ -83,7 +120,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
     ).populate('customerId', 'firstName lastName');
     
     if (!subscription) {
-      res.status(404).json({ error: 'Subscription not found' });
+      res.status(404).json({ error: 'Subscription not found or access denied' });
       return;
     }
     res.json(subscription);
@@ -93,7 +130,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
 });
 
 // Add payment
-router.post('/:id/payments', async (req: AuthRequest, res) => {
+router.post('/:id/payments', requireRole('admin', 'sales', 'bdc'), async (req: AuthRequest, res) => {
   try {
     const { amount, method } = req.body;
     
@@ -116,7 +153,7 @@ router.post('/:id/payments', async (req: AuthRequest, res) => {
     );
     
     if (!subscription) {
-      res.status(404).json({ error: 'Subscription not found' });
+      res.status(404).json({ error: 'Subscription not found or access denied' });
       return;
     }
     
@@ -127,7 +164,7 @@ router.post('/:id/payments', async (req: AuthRequest, res) => {
 });
 
 // Add service
-router.post('/:id/services', async (req: AuthRequest, res) => {
+router.post('/:id/services', requireRole('admin', 'sales', 'bdc'), async (req: AuthRequest, res) => {
   try {
     const { type, season, scheduledDate } = req.body;
     
@@ -147,7 +184,7 @@ router.post('/:id/services', async (req: AuthRequest, res) => {
     );
     
     if (!subscription) {
-      res.status(404).json({ error: 'Subscription not found' });
+      res.status(404).json({ error: 'Subscription not found or access denied' });
       return;
     }
     
@@ -158,11 +195,12 @@ router.post('/:id/services', async (req: AuthRequest, res) => {
 });
 
 // Get upcoming renewals (for dashboard)
-router.get('/dashboard/upcoming', async (_req: AuthRequest, res) => {
+router.get('/dashboard/upcoming', filterByUserRole, async (req: AuthRequest, res) => {
   try {
     const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     
     const upcoming = await Subscription.find({
+      ...(req as any).roleFilter || {},
       status: 'active',
       nextBillDate: { $lte: nextWeek },
     })

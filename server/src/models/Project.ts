@@ -178,8 +178,20 @@ export interface IProject extends Document {
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
 
-  createdAt: Date;
-  updatedAt: Date;
+createdAt: Date;
+updatedAt: Date;
+attachments: IProjectAttachment[];
+}
+
+export interface IProjectAttachment {
+  _id?: Types.ObjectId;
+  filename: string;
+  path: string;
+  mimeType: string;
+  size: number;
+  type: 'contract' | 'photo' | 'other';
+  uploadedBy: Types.ObjectId;
+  uploadedAt: Date;
 }
 
 const ProjectLineItemSchema = new Schema<IProjectLineItem>(
@@ -308,6 +320,16 @@ const CommissionSchema = new Schema({
   calcMethod: { type: String, enum: ['flat', 'percentage'] },
 }, { _id: false });
 
+const ProjectAttachmentSchema = new Schema<IProjectAttachment>({
+  filename: { type: String, required: true },
+  path: { type: String, required: true },
+  mimeType: { type: String, required: true },
+  size: { type: Number, required: true },
+  type: { type: String, enum: ['contract', 'photo', 'other'], default: 'other' },
+  uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  uploadedAt: { type: Date, default: Date.now },
+}, { _id: true });
+
 const ProjectSchema = new Schema<IProject>(
   {
     projectNumber: { type: String, required: true, unique: true, index: true },
@@ -365,6 +387,7 @@ const ProjectSchema = new Schema<IProject>(
     // Audit fields
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  attachments: { type: [ProjectAttachmentSchema], default: [] },
   },
   { timestamps: true }
 );

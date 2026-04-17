@@ -149,6 +149,13 @@
               @click="showChangeOrder = true"
               unelevated
             />
+            <q-btn
+              color="info"
+              icon="email"
+              label="Send Email"
+              @click="showEmailComposer = true"
+              unelevated
+            />
           </div>
         </div>
 
@@ -416,12 +423,52 @@
             </q-item>
           </q-list>
 
-          <div v-if="!payments.length" class="text-center text-grey q-pa-lg">
-            No payments recorded yet.
+           <div v-if="!payments.length" class="text-center text-grey q-pa-lg">
+             No payments recorded yet.
+           </div>
+         </div>
+
+<!-- Audit Trail -->
+          <div class="glass-card q-mt-md">
+            <audit-trail 
+              :audit-logs="project.auditTrail || []" 
+              @refresh="refreshAuditTrail"
+              @user-click="showUserDetail"
+            />
           </div>
-        </div>
-      </div>
-    </div>
+
+          <!-- Attachments Section -->
+          <div class="glass-card q-mt-md">
+            <div class="q-pa-md border-bottom">
+              <div class="row items-center justify-between">
+                <div class="text-h6 text-weight-bold">Attachments</div>
+                <q-btn flat icon="add" label="Upload" @click="showUploader = true" color="primary" />
+              </div>
+            </div>
+
+            <q-list separator>
+              <q-item v-for="attachment in attachments" :key="attachment._id" clickable v-ripple>
+                <q-item-section avatar>
+                  <q-icon :name="getAttachmentIcon(attachment.mimeType)" color="primary" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ attachment.filename }}</q-item-label>
+                  <q-item-label caption>
+                    {{ attachment.type }} • {{ formatDate(attachment.uploadedAt) }} • {{ (attachment.size / 1024).toFixed(1) }} KB
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-btn flat round icon="download" @click="downloadAttachment(attachment)" />
+                </q-item-section>
+              </q-item>
+            </q-list>
+
+            <div v-if="!attachments.length" class="text-center text-grey q-pa-lg">
+              No attachments yet. Upload one above.
+            </div>
+          </div>
+       </div>
+     </div>
 
     <!-- Edit Payment Dialog -->
     <q-dialog v-model="showEditPayment" persistent>
@@ -995,17 +1042,56 @@
           </q-select>
         </q-card-section>
 
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" v-close-popup />
-          <q-btn
-            color="primary"
-            label="Save"
-            @click="saveAssignment"
-            :loading="savingAssignment"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+<q-card-actions align="right">
+           <q-btn flat label="Cancel" v-close-popup />
+           <q-btn
+             color="primary"
+             label="Save"
+             @click="saveAssignment"
+             :loading="savingAssignment"
+           />
+         </q-card-actions>
+       </q-card>
+     </q-dialog>
+
+     <!-- Upload File Dialog -->
+     <q-dialog v-model="showUploader" persistent>
+       <q-card class="glass-card" style="width: 500px">
+         <q-card-section>
+           <div class="text-h6">Upload File</div>
+         </q-card-section>
+         <q-card-section>
+           <q-select
+             v-model="uploadType"
+             :options="attachmentTypeOptions"
+             label="File Type"
+             outlined
+             class="q-mb-md"
+           />
+           <q-uploader
+             :url="uploadUrl"
+             method="POST"
+             field-name="file"
+             :headers="uploadHeaders"
+             :form-fields="[{name: 'type', value: uploadType}]"
+             :multiple="false"
+             accept=".jpg, .png, .pdf"
+             @uploaded="onFileUploaded"
+             @rejected="onFileRejected"
+           />
+         </q-card-section>
+         <q-card-actions align="right">
+           <q-btn flat label="Cancel" v-close-popup />
+         </q-card-actions>
+       </q-card>
+     </q-dialog>
+
+    <email-composer
+      v-model="showEmailComposer"
+      :entityId="route.params.id"
+      entityType="project"
+      :recipient="project.customerId?.contacts?.[0]?.email"
+    />
   </q-page>
 
   <!-- Loading State -->
@@ -1035,6 +1121,8 @@ import { useProjectStore } from "@/stores/projects";
 import { useUserStore } from "@/stores/users";
 import { useAuthStore } from "@/stores/auth";
 import UserAvatar from "@/components/UserAvatar.vue";
+import AuditTrail from "@/components/AuditTrail.vue";
+import EmailComposer from "@/components/EmailComposer.vue";
 import {
   socket,
   connectSocket,
@@ -1065,6 +1153,7 @@ const showVoidPayment = ref(false);
 const showStatusChange = ref(false);
 const showCommissionDialog = ref(false);
 const showAssignmentDialog = ref(false);
+const showEmailComposer = ref(false);
 
 // Assignment
 const assignmentData = ref({
@@ -1103,9 +1192,7 @@ const editPaymentData = ref({
 });
 const voidReason = ref("");
 const editing = ref(false);
-const voiding = ref(false);
-
-const project = computed(() => projectStore.currentProject);
+const voiding = ref(false);\nconst pnlData = ref(null);\n\nconst project = computed(() => projectStore.currentProject);
 const activities = computed(() => project.value?.activities || []);
 const tasks = computed(() => project.value?.tasks || []);
 const payments = computed(() => project.value?.payments || []);
@@ -1211,6 +1298,7 @@ const activityColor = (type: string) => {
     payment: "positive",
     file_upload: "warning",
     call: "accent",
+    email: "amber",
   };
   return colors[type] || "grey";
 };
@@ -1259,6 +1347,7 @@ const refreshActivities = async () => {
   error.value = null;
   try {
     await projectStore.fetchProject(route.params.id as string);
+    await projectStore.fetchAuditTrail(route.params.id as string);
     if (!projectStore.currentProject) {
       error.value = "Project not found";
     }
@@ -1272,6 +1361,14 @@ const refreshActivities = async () => {
 const retryFetch = async () => {
   error.value = null;
   await refreshActivities();
+};
+
+const refreshAuditTrail = async () => {
+  try {
+    await projectStore.fetchAuditTrail(route.params.id as string);
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to refresh audit trail' });
+  }
 };
 
 const addNote = async () => {
@@ -1449,6 +1546,7 @@ const calculateCommission = async () => {
     
     // Refresh project to get updated commission data
     await projectStore.fetchProject(route.params.id as string);
+    await projectStore.fetchAuditTrail(route.params.id as string);
     showCommissionDialog.value = false;
     selectedSalesReps.value = [];
     commissionSplits.value = {};
@@ -1475,6 +1573,23 @@ const markCommissionPaid = async (type: "sales" | "bdc") => {
 
 // Assignment functions
 const savingAssignment = ref(false);
+
+const showUploader = ref(false);
+const uploadType = ref('other');
+
+const attachmentTypeOptions = [
+  { label: 'Contract', value: 'contract' },
+  { label: 'Photo', value: 'photo' },
+  { label: 'Other', value: 'other' },
+];
+
+const attachments = computed(() => project.value?.attachments || []);
+
+const uploadUrl = computed(() => `${import.meta.env.VITE_API_URL}/projects/${route.params.id}/uploads`);
+
+const uploadHeaders = computed(() => ([
+  { name: 'Authorization', value: `Bearer ${authStore.token}` }
+]));
 
 const openAssignmentDialog = () => {
   // Initialize with current values
@@ -1588,6 +1703,26 @@ const updateStatus = async () => {
   }
 };
 
+const onFileUploaded = (info) => {
+  projectStore.fetchProject(route.params.id as string);
+  showUploader.value = false;
+  $q.notify({ type: 'positive', message: 'File uploaded successfully' });
+};
+
+const onFileRejected = () => {
+  $q.notify({ type: 'negative', message: 'File rejected - only JPG, PNG, PDF allowed, max 5MB' });
+};
+
+const getAttachmentIcon = (mimeType: string) => {
+  if (mimeType.includes('image')) return 'image';
+  if (mimeType.includes('pdf')) return 'picture_as_pdf';
+  return 'attach_file';
+};
+
+const downloadAttachment = (attachment) => {
+  $q.notify({ type: 'info', message: 'Download feature coming soon' });
+};
+
 // Socket event handlers
 const handleActivityUpdate = (activity: any) => {
   if (project.value?.activities) {
@@ -1691,27 +1826,7 @@ onMounted(async () => {
     await Promise.all([
       projectStore.fetchProject(projectId),
       userStore.fetchUsers(),
-    ]);
-
-    if (!projectStore.currentProject) {
-      error.value = "Project not found";
-    }
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : "Failed to load project";
-  }
-
-  // Connect socket and join project room
-  connectSocket(authStore.token);
-  joinProjectRoom(projectId);
-
-  // Set up socket listeners for real-time updates
-  socket.on("project:activity", handleActivityUpdate);
-  socket.on("project:task", handleTaskUpdate);
-  socket.on("project:payment", handlePaymentUpdate);
-  socket.on("project:changeOrder", handleChangeOrderUpdate);
-  socket.on("customer:updated", handleCustomerUpdate);
-  socket.on("project:updated", handleProjectUpdate);
-});
+    ]);\n\n    if (!projectStore.currentProject) {\n      error.value = \"Project not found\";\n    }\n\n    // Fetch PnL if authorized\n    if (authStore.user.roles.includes('admin') || authStore.user.roles.includes('manager')) {\n      try {\n        const { data } = await api.get(`/projects/${projectId}/pnl`);\n        pnlData.value = data;\n      } catch (err) {\n        console.error('Failed to fetch PnL', err);\n      }\n    }\n  } catch (err) {\n    error.value = err instanceof Error ? err.message : \"Failed to load project\";\n  }\n\n  // Connect socket and join project room\n  connectSocket(authStore.token);\n  joinProjectRoom(projectId);\n\n  // Set up socket listeners for real-time updates\n  socket.on(\"project:activity\", handleActivityUpdate);\n  socket.on(\"project:task\", handleTaskUpdate);\n  socket.on(\"project:payment\", handlePaymentUpdate);\n  socket.on(\"project:changeOrder\", handleChangeOrderUpdate);\n  socket.on(\"customer:updated\", handleCustomerUpdate);\n  socket.on(\"project:updated\", handleProjectUpdate);\n});
 
 onUnmounted(() => {
   const projectId = route.params.id as string;

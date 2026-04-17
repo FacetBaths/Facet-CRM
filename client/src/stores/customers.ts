@@ -2,6 +2,23 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { api } from '@/boot/axios';
 
+interface Change {
+  field: string;
+  oldValue: any;
+  newValue: any;
+}
+
+interface AuditLog {
+  _id: string;
+  timestamp: string;
+  userId: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+  };
+  changes: Change[];
+}
+
 interface Customer {
   _id: string;
   firstName: string;
@@ -11,6 +28,7 @@ interface Customer {
   notes?: string;
   createdAt: string;
   updatedAt?: string;
+  auditTrail?: AuditLog[];
 }
 
 interface Project {
@@ -100,6 +118,19 @@ export const useCustomerStore = defineStore('customers', () => {
     }
   };
 
+const fetchAuditTrail = async (id: string) => {
+  try {
+    const { data } = await api.get(`/customers/${id}/audit`);
+    if (currentCustomer.value?._id === id) {
+      currentCustomer.value.auditTrail = data;
+    }
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch audit trail:', error);
+    throw error;
+  }
+};
+
   return {
     customers,
     currentCustomer,
@@ -112,5 +143,6 @@ export const useCustomerStore = defineStore('customers', () => {
     createCustomer,
     updateCustomer,
     fetchCustomerProjects,
+    fetchAuditTrail,
   };
 });

@@ -237,22 +237,9 @@ socket.join(`project:${projectId}`)
 - Projects list (filters + create dialog)
 - **Project Detail Page** (flagship): activity feed, tasks, payments, change orders, real-time updates
 - Customer list + Customer Detail Page
-- Socket.io listeners on Project Detail
+- Socket.io listeners on Project Detail\n- PnL Reporting — per-project profit/loss
 
-### 🚧 Frontend — Pending (Priority Order)
-
-1. **Audit Trail full history UI** — store + display full change log (backend ready)
-2. **Calendar System** — sales appointment scheduling + production scheduling
-   - Month/week/day views, conflict detection, drag-to-reschedule
-   - Schema: `calendar_events` collection (see `PROJECT_ROADMAP.md`)
-3. **Email Integration** — IMAP/SMTP with privateemail.com
-   - Link threads to Customers/Projects, auto-log to activity feed
-4. **Products Catalog Management** — add/edit products with variants
-5. **Vendors Management** page
-6. **Subscriptions Dashboard** — Radiance billing, renewal alerts
-7. **POS Frontend** — retail checkout for Facet Refinery
-8. **PnL Reporting** — per-project profit/loss
-9. **File Uploads** — attach contracts/photos (S3 or local)
+### 🚧 Frontend — Pending (Priority Order)\n\n1. **Audit Trail full history UI** — store + display full change log (backend ready)\n2. **Calendar System** — sales appointment scheduling + production scheduling\n   - Month/week/day views, conflict detection, drag-to-reschedule\n   - Schema: `calendar_events` collection (see `PROJECT_ROADMAP.md`)\n3. **Email Integration** — IMAP/SMTP with privateemail.com\n   - Link threads to Customers/Projects, auto-log to activity feed\n4. **Products Catalog Management** — add/edit products with variants\n5. **Vendors Management** page\n6. **Subscriptions Dashboard** — Radiance billing, renewal alerts\n7. **POS Frontend** — retail checkout for Facet Refinery\n8. **File Uploads** — attach contracts/photos (S3 or local)
 
 ---
 

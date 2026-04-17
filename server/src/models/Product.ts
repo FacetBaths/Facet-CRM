@@ -2,8 +2,8 @@ import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IProductVariant {
   sku: string;
-  description?: string;
   size?: string;
+  color?: string;
   costPrice: number;
   retailPrice: number;
   isActive: boolean;
@@ -18,15 +18,17 @@ export interface IProduct extends Document {
   defaultVendorId?: Types.ObjectId;
   variants: IProductVariant[];
   isActive: boolean;
+  createdBy?: Types.ObjectId;
+  updatedBy?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const ProductVariantSchema = new Schema<IProductVariant>(
   {
-    sku: { type: String, required: true },
-    description: { type: String },
+    sku: { type: String, required: true, unique: true },
     size: { type: String },
+    color: { type: String },
     costPrice: { type: Number, required: true, default: 0 },
     retailPrice: { type: Number, required: true, default: 0 },
     isActive: { type: Boolean, default: true },
@@ -51,6 +53,8 @@ const ProductSchema = new Schema<IProduct>(
     defaultVendorId: { type: Schema.Types.ObjectId, ref: 'Vendor' },
     variants: { type: [ProductVariantSchema], default: [] },
     isActive: { type: Boolean, default: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );

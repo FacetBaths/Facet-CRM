@@ -94,7 +94,7 @@
           <div class="column q-gutter-sm">
             <q-btn color="primary" icon="add" label="New Project" @click="createProject" unelevated />
             <q-btn color="secondary" icon="note_add" label="Add Note" @click="showAddNote = true" unelevated />
-            <q-btn color="info" icon="email" label="Send Email" @click="sendEmail" unelevated />
+            <q-btn color="info" icon="email" label="Send Email" @click="showEmailComposer = true" unelevated />
           </div>
         </div>
       </div>
@@ -215,10 +215,19 @@
                 </span>
               </q-td>
             </template>
-          </q-table>
-        </div>
-      </div>
-    </div>
+           </q-table>
+         </div>
+
+         <!-- Audit Trail -->
+         <div class="glass-card q-pa-md q-mt-md">
+           <audit-trail 
+             :audit-logs="customer.auditTrail || []" 
+             @refresh="refreshAuditTrail"
+             @user-click="showUserDetail"
+           />
+         </div>
+       </div>
+     </div>
 
     <!-- Edit Customer Dialog -->
     <q-dialog v-model="showEdit">
@@ -305,9 +314,132 @@
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
           <q-btn color="primary" label="Add Note" @click="addNote" :loading="adding" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+         </q-card-actions>
+       </q-card>
+     </q-dialog>
+
+     <!-- User Detail Modal -->
+     <q-dialog v-model="showUserDetailModal">
+       <q-card style="min-width: 400px; max-width: 500px" class="glass-card" v-if="selectedUser">
+         <q-card-section class="text-center q-pt-lg">
+           <user-avatar
+             :user="selectedUser"
+             size="xl"
+             :clickable="false"
+             :show-tooltip="false"
+             class="q-mb-md"
+           />
+           
+           <div class="text-h5 text-weight-bold">
+             {{ selectedUser.firstName }} {{ selectedUser.lastName }}
+           </div>
+           
+           <div class="text-caption text-grey-7 q-mb-sm" v-if="selectedUser.employeeId">
+             {{ selectedUser.employeeId }}
+           </div>
+           
+           <div class="q-mb-md">
+             <q-badge
+               v-for="role in selectedUser.roles"
+               :key="role"
+               :color="roleColor(role)"
+               class="q-mr-xs"
+             >
+               {{ formatRole(role) }}
+             </q-badge>
+           </div>
+         </q-card-section>
+
+         <q-card-section>
+           <q-list dense>
+             <q-item v-if="selectedUser.email">
+               <q-item-section avatar>
+                 <q-icon name="email" color="primary" />
+               </q-item-section>
+               <q-item-section>
+                 <q-item-label>{{ selectedUser.email }}</q-item-label>
+               </q-item-section>
+               <q-item-section side>
+                 <q-btn flat round icon="content_copy" size="sm" @click="copyText(selectedUser.email)" />
+               </q-item-section>
+             </q-item>
+             
+             <q-item v-if="selectedUser.phone">
+               <q-item-section avatar>
+                 <q-icon name="phone" color="positive" />
+               </q-item-section>
+               <q-item-section>
+                 <q-item-label>{{ selectedUser.phone }}</q-item-label>
+                 <q-item-label v-if="selectedUser.phoneExtension" caption>ext. {{ selectedUser.phoneExtension }}</q-item-label>
+               </q-item-section>
+               <q-item-section side>
+                 <q-btn flat round icon="content_copy" size="sm" @click="copyText(selectedUser.phone)" />
+               </q-item-section>
+             </q-item>
+             
+             <q-item v-if="selectedUser.department">
+               <q-item-section avatar>
+                 <q-icon name="business" color="accent" />
+               </q-item-section>
+               <q-item-section>
+                 <q-item-label>{{ selectedUser.department }}</q-item-label>
+               </q-item-section>
+             </q-item>
+             
+             <q-item v-if="selectedUser.marketId?.name || selectedUser.marketId?.code || selectedUser.marketId">
+               <q-item-section avatar>
+                 <q-icon name="place" color="warning" />
+               </q-item-section>
+               <q-item-section>
+                 <q-item-label>{{ selectedUser.marketId?.name || selectedUser.marketId?.code || 'Market ' + selectedUser.marketId }}</q-item-label>
+               </q-item-section>
+             </q-item>
+
+             <q-item v-if="selectedUser.employmentType">
+               <q-item-section avatar>
+                 <q-icon name="work" color="info" />
+               </q-item-section>
+               <q-item-section>
+                 <q-item-label>{{ formatEmploymentType(selectedUser.employmentType) }}</q-item-label>
+               </q-item-section>
+             </q-item>
+
+             <q-item v-if="selectedUser.commissionTier">
+               <q-item-section avatar>
+                 <q-icon name="attach_money" color="positive" />
+               </q-item-section>
+               <q-item-section>
+                 <q-item-label>Commission Tier {{ selectedUser.commissionTier }}</q-item-label>
+               </q-item-section>
+             </q-item>
+
+             <q-item v-if="selectedUser.bio">
+               <q-item-section>
+                 <q-item-label class="text-grey-7" style="white-space: pre-wrap">{{ selectedUser.bio }}</q-item-label>
+               </q-item-section>
+             </q-item>
+           </q-list>
+         </q-card-section>
+
+         <q-card-actions align="right" class="q-pa-md">
+           <q-btn flat label="Close" v-close-popup />
+           <q-btn
+             v-if="selectedUser._id !== authStore.user?._id"
+             color="primary"
+             icon="chat"
+             label="Ping"
+             @click="showUserDetailModal = false; $q.notify({type: 'info', message: 'Ping feature coming soon'})"
+           />
+         </q-card-actions>
+       </q-card>
+     </q-dialog>
+
+     <email-composer
+       v-model="showEmailComposer"
+       :entityId="route.params.id"
+       entityType="customer"
+       :recipient="customer.contacts?.[0]?.email"
+     />
   </q-page>
 
   <q-page v-else class="flex flex-center">
@@ -317,12 +449,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import EmailComposer from '@/components/EmailComposer.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useCustomerStore } from '@/stores/customers';
 import { useProjectStore } from '@/stores/projects';
 import { socket, connectSocket, joinProjectRoom, leaveProjectRoom } from '@/boot/socket';
 import { useAuthStore } from '@/stores/auth';
+import AuditTrail from '@/components/AuditTrail.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 
 const $q = useQuasar();
 const route = useRoute();
@@ -338,6 +473,9 @@ const showAddNote = ref(false);
 const newNote = ref('');
 const saving = ref(false);
 const adding = ref(false);
+const showEmailComposer = ref(false);
+const showUserDetailModal = ref(false);
+const selectedUser = ref(null);
 
 const editForm = ref({
   firstName: '',
@@ -464,6 +602,7 @@ function activityTitle(activity: any) {
     payment: 'Payment Recorded',
     call: 'Call Logged',
     change_order: 'Change Order',
+    email: 'Email Sent',
   };
   return titles[activity.type] || activity.type;
 }
@@ -476,6 +615,7 @@ function activityColor(type: string) {
     payment: 'green',
     call: 'amber',
     change_order: 'orange',
+    email: 'amber',
   };
   return colors[type] || 'primary';
 }
@@ -488,9 +628,44 @@ function activityIcon(type: string) {
     payment: 'payment',
     call: 'phone',
     change_order: 'edit',
+    email: 'email',
   };
   return icons[type] || 'circle';
 }
+
+const roleColor = (role) => {
+  const colors = {
+    admin: 'positive',
+    manager: 'warning',
+    sales: 'primary',
+    bdc: 'secondary',
+    design_consultant: 'accent',
+    production: 'info',
+    warehouse: 'dark',
+    installer: 'negative',
+    contractor: 'grey',
+  };
+  return colors[role] || 'grey';
+};
+
+const formatRole = (role) => {
+  return role.replace(/_/g, ' ').toUpperCase();
+};
+
+const formatEmploymentType = (type) => {
+  const types = {
+    full_time: 'Full Time',
+    part_time: 'Part Time',
+    contractor: 'Contractor',
+  };
+  return types[type] || type;
+};
+
+const copyText = (text) => {
+  navigator.clipboard.writeText(text).then(() => {
+    $q.notify({ type: 'positive', message: 'Copied to clipboard' });
+  });
+};
 
 async function fetchCustomerData() {
   try {
@@ -503,6 +678,7 @@ async function fetchCustomerData() {
     
     if (!response.ok) throw new Error('Failed to fetch customer');
     customer.value = await response.json();
+    await customerStore.fetchAuditTrail(customerId);
     
     // Fetch all projects for this customer
     const projectsResponse = await fetch(`/api/projects?customerId=${customerId}`, {
@@ -646,6 +822,11 @@ async function addNote() {
   }
 }
 
+const showUserDetail = (user) => {
+  selectedUser.value = user;
+  showUserDetailModal.value = true;
+};
+
 function createProject() {
   router.push({
     path: '/projects',
@@ -653,14 +834,15 @@ function createProject() {
   });
 }
 
-function sendEmail() {
-  const email = customer.value?.contacts?.[0]?.email;
-  if (email) {
-    window.location.href = `mailto:${email}`;
-  } else {
-    $q.notify({ type: 'warning', message: 'No email on file' });
+const refreshAuditTrail = async () => {
+  try {
+    await customerStore.fetchAuditTrail(route.params.id as string);
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to refresh audit trail' });
   }
-}
+};
+
+
 
 // Socket handlers for real-time updates
 const handleActivityUpdate = (activity: any) => {

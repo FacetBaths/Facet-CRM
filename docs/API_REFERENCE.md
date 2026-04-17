@@ -490,25 +490,7 @@ Respond to change order (approve/deny) - admin only.
 }
 ```
 
-### GET /projects/stats/dashboard
-Get dashboard stats with role-based filtering.
-
-**Response:**
-```json
-{
-  "totalProjects": 45,
-  "activeProjects": 23,
-  "pendingTasks": 67,
-  "totalContractValue": 875000,
-  "projectsByStatus": {
-    "lead": 5,
-    "contract_signed": 8,
-    "in_production": 12
-  }
-}
-```
-
----
+### GET /projects/stats/dashboard\nGet dashboard stats with role-based filtering.\n\n**Response:**\n```json\n{\n  \"totalProjects\": 45,\n  \"activeProjects\": 23,\n  \"pendingTasks\": 67,\n  \"totalContractValue\": 875000,\n  \"projectsByStatus\": {\n    \"lead\": 5,\n    \"contract_signed\": 8,\n    \"in_production\": 12\n  }\n}\n```\n\n### GET /projects/:id/pnl\nGet PnL calculations for a project.\n\n**Auth Requirement:** Bearer token required\n**Minimum Role:** admin or manager\n\n**Request Body:** None\n\n**Response:**\n```json\n{\n  \"totalRevenue\": 18700,\n  \"receivedPayments\": 10000,\n  \"totalCosts\": 12000,\n  \"laborCosts\": 5000,\n  \"otherExpenses\": 4000,\n  \"commissionCosts\": 3000,\n  \"profit\": 6700\n}\n```\n\n**Error Responses:**\n- 404 Project not found\n- 403 Forbidden\n- 500 Server error\n\n---
 
 ## Products
 
@@ -832,6 +814,72 @@ Update global commission rules (admin only).
 
 ---
 
+## Emails
+
+### GET /emails
+List emails with role-based filtering.
+
+**Auth:** admin, manager, sales
+
+**Response:**
+```json
+[
+  {
+    "_id": "...",
+    "from": "sender@example.com",
+    "to": ["recipient@example.com"],
+    "subject": "Subject",
+    "bodyText": "Text",
+    "bodyHtml": "<html>",
+    "attachments": [],
+    "receivedAt": "2026-04-16T...",
+    "status": "inbox",
+    "projectId": "...",
+    "customerId": "..."
+  }
+]
+```
+
+### POST /emails/send
+Send an email and save it.
+
+**Auth:** admin, manager, sales
+
+**Request:**
+```json
+{
+  "to": ["recipient@example.com"],
+  "subject": "Subject",
+  "bodyText": "Plain text",
+  "bodyHtml": "<p>HTML</p>",
+  "attachments": [],
+  "projectId": "...",
+  "customerId": "..."
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Email sent successfully",
+  "email": { ... }
+}
+```
+
+### GET /emails/sync
+Trigger manual email sync from IMAP.
+
+**Auth:** admin, manager
+
+**Response:**
+```json
+{
+  "message": "Emails synced successfully"
+}
+```
+
+---
+
 ## Socket.io Real-Time Events
 
 Connect to `ws://localhost:3000` with auth token.
@@ -896,6 +944,20 @@ socket.emit('leave-project', 'project_id')
 }
 ```
 
+**email:sent** - New email sent
+```json
+{
+  "email": { ... }
+}
+```
+
+**email:received** - New email received
+```json
+{
+  "email": { ... }
+}
+```
+
 ---
 
 ## Error Responses
@@ -923,7 +985,7 @@ API requests are limited to 100 per 15 minutes per IP address.
 
 ---
 
-*Last Updated: 2026-04-13*
+*Last Updated: 2026-04-16*
 
 ## Changelog
 
@@ -936,3 +998,7 @@ API requests are limited to 100 per 15 minutes per IP address.
 - **Company API**: Added markets management endpoints (GET/POST/PUT/DELETE)
 - **User Management API**: Added status management endpoint (`PATCH /users/:id/status`)
 - **User Management API**: Added market-based user filtering (`GET /users/market/:marketId`)
+
+### April 16, 2026
+- Added Emails API endpoints for list, send, sync
+- Added 'email:sent' and 'email:received' socket events

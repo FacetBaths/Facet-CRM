@@ -465,6 +465,17 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
   estimatedCompletionDate: Date,
   warrantyStartDate: Date,
   
+  // Attachments
+  attachments: [{
+    filename: String,
+    path: String,
+    mimeType: String,
+    size: Number,
+    type: Enum['contract', 'photo', 'other'],
+    uploadedBy: ObjectId (ref: Users),
+    uploadedAt: Date
+  }],
+
   // Audit fields
   createdBy: ObjectId (ref: Users),
   updatedBy: ObjectId (ref: Users),
@@ -520,6 +531,36 @@ Facet CRM is a unified replacement for LEAP and SalesPro, designed specifically 
 }
 ```
 
+### Emails Collection
+```javascript
+{
+  _id: ObjectId,
+  from: String,
+  to: [String],
+  cc: [String],
+  bcc: [String],
+  subject: String,
+  bodyText: String,
+  bodyHtml: String,
+  attachments: [{
+    filename: String,
+    contentType: String,
+    size: Number,
+    contentId: String
+  }],
+  receivedAt: Date,
+  sentAt: Date,
+  status: Enum['inbox', 'sent', 'draft'],
+  threadId: String,
+  labels: [String],
+  projectId: ObjectId (ref: Projects),
+  customerId: ObjectId (ref: Customers),
+  createdBy: ObjectId (ref: Users),
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
 ---
 
 ## Notifications (In-Memory)
@@ -542,6 +583,35 @@ Notifications are stored in-memory for the MVP. Each notification has:
 ```
 
 **Note:** Notifications are ephemeral and will be lost on server restart. For production, migrate to MongoDB with TTL index.
+
+---
+
+## Email Integration
+
+- Uses nodemailer for SMTP sending with privateemail.com
+- Uses imapflow for IMAP fetching with 5-minute polling
+- Automatic matching of emails to customers and projects based on email addresses
+- Matched emails logged as project activities
+- Credentials securely stored in .env
+
+## Socket.io Events
+
+Backend already broadcasts these — frontend must listen:
+
+```javascript
+// Join/leave rooms in ProjectDetailPage
+socket.join(`project:${projectId}`)
+
+// Events to handle
+'project:activity'     → append to activity feed
+'project:task'         → { action: 'updated', task } → update task list
+'project:payment'      → { amount, totalPaid, percentPaid } → update payment bar
+'project:changeOrder'  → { action: 'created', changeOrder }
+'customer:updated'     → refresh customer data
+'project:updated'      → refresh project data
+'email:sent'           → { email } → handle new sent email
+'email:received'       → { email } → handle new received email
+```
 
 ---
 
@@ -718,31 +788,40 @@ Response: { "status": "ok", "timestamp": "..." }
 
 ## Known Limitations
 
-1. **No file uploads** - Contracts/photos not yet supported
+
 2. **No email notifications** - Task assignments don't send emails
 3. **No offline support** - Requires constant connectivity
 4. **No mobile app** - Responsive web only
 5. **No automated testing** - Manual QA only
 6. **No calendar system** - Sales appointments and production scheduling pending
-7. **No email integration** - privateemail.com sync pending
 
 ---
 
 ## Future Considerations
 
 1. **Calendar System** - Sales appointments and production scheduling
-2. **Email Integration** - IMAP/SMTP sync with privateemail.com
-3. **File Uploads** - S3 integration for contracts and photos
-4. **Audit Trail** - Full change tracking with user attribution
-5. **Microservices** - Split POS to separate service if Refinery scales
-6. **Caching** - Redis for session store and hot data
-7. **Search** - Elasticsearch for full-text search across projects
-8. **Analytics** - MongoDB aggregation pipelines for reporting
-9. **Mobile** - Capacitor wrapper for native app feel
+2. **File Uploads** - S3 integration for contracts and photos
+3. **Audit Trail** - Full change tracking with user attribution
+4. **Microservices** - Split POS to separate service if Refinery scales
+5. **Caching** - Redis for session store and hot data
+6. **Search** - Elasticsearch for full-text search across projects
+7. **Analytics** - MongoDB aggregation pipelines for reporting
+8. **Mobile** - Capacitor wrapper for native app feel
 
 ---
 
-*Last Updated: 2026-04-13*
+*Last Updated: 2026-04-16*
+
+Field added: Project.attachments (array of objects)
+
+Compatibility checklist:
+- server/src/models/Project.ts       → added field to IProject interface + schema
+- server/src/routes/projects.ts      → added to populate() calls in get /:id
+- server/src/middleware/auth.ts      → no change
+- docs/TECHNICAL_SPECS.md           → updated schema definition
+- docs/API_REFERENCE.md             → updated response examples for GET /projects/:id
+- client/src/stores/projectStore.ts  → updated TypeScript interface for Project
+- client/src/pages/ProjectDetailPage.vue    → added UI for attachments and uploader
 
 ## Changelog
 
@@ -755,3 +834,8 @@ Response: { "status": "ok", "timestamp": "..." }
 - **Schema**: CompanySettings includes `employeeIdConfig` for auto-generation
 - **Schema**: Markets include `operatingHours`, `settings`, and `branding` sub-documents
 - **Schema**: Teams include `goals`, `autoAssignLeads`, and `assignmentStrategy` for lead routing
+
+### April 16, 2026
+- **Schema**: Added Emails collection for email integration
+- **Feature**: Implemented IMAP/SMTP email integration with polling and auto-logging to projects
+- **Realtime**: Added 'email:sent' and 'email:received' socket events

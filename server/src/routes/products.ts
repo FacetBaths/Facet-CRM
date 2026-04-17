@@ -1,12 +1,18 @@
 import { Router, Response } from 'express';
 import { body } from 'express-validator';
 import { Product } from '../models/Product';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, requireRole } from '../middleware/auth';
 
 const router = Router();
 
+// Role-based filter for products - all authenticated users can view, writes restricted
+const filterByUserRole = async (req: AuthRequest, res: Response, next: Function) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  return next();
+};
+
 // Get all products
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', filterByUserRole, async (req: AuthRequest, res) => {
   try {
     const { category, active, search } = req.query;
     let query: any = {};
@@ -33,7 +39,7 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 // Get product by ID
-router.get('/:id', async (req: AuthRequest, res) => {
+router.get('/:id', filterByUserRole, async (req: AuthRequest, res) => {
   try {
     const product = await Product.findById(req.params.id)
       .populate('defaultVendorId', 'name');
@@ -51,6 +57,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 // Create product
 router.post(
   '/',
+  requireRole('admin', 'manager', 'warehouse'),
   [
     body('name').trim().notEmpty(),
     body('category').isIn(['materials', 'labor', 'service', 'package', 'retail']),
@@ -58,7 +65,7 @@ router.post(
   ],
   async (req: AuthRequest, res: Response) => {
     try {
-      const product = new Product(req.body);
+      const product = new Product({ ...req.body, createdBy: req.user?._id });
       await product.save();
       
       const populatedProduct = await Product.findById(product._id)
@@ -72,41 +79,49 @@ router.post(
 );
 
 // Update product
-router.put('/:id', async (req: AuthRequest, res) => {
-  try {
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    ).populate('defaultVendorId', 'name');
-    
-    if (!product) {
-      res.status(404).json({ error: 'Product not found' });
-      return;
+router.put(
+  '/:id',
+  requireRole('admin', 'manager', 'warehouse'),
+  async (req: AuthRequest, res) => {
+    try {
+      const product = await Product.findByIdAndUpdate(
+        req.params.id,
+        { ...req.body, updatedBy: req.user?._id },
+        { new: true, runValidators: true }
+      ).populate('defaultVendorId', 'name');
+      
+      if (!product) {
+        res.status(404).json({ error: 'Product not found' });
+        return;
+      }
+      res.json(product);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update product' });
     }
-    res.json(product);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update product' });
   }
-});
+);
 
 // Delete product (soft delete)
-router.delete('/:id', async (req: AuthRequest, res) => {
-  try {
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      { isActive: false },
-      { new: true }
-    );
-    
-    if (!product) {
-      res.status(404).json({ error: 'Product not found' });
-      return;
+router.delete(
+  '/:id',
+  requireRole('admin', 'manager', 'warehouse'),
+  async (req: AuthRequest, res) => {
+    try {
+      const product = await Product.findByIdAndUpdate(
+        req.params.id,
+        { isActive: false, updatedBy: req.user?._id },
+        { new: true }
+      );
+      
+      if (!product) {
+        res.status(404).json({ error: 'Product not found' });
+        return;
+      }
+      res.json({ message: 'Product deactivated' });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to deactivate product' });
     }
-    res.json({ message: 'Product deactivated' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to deactivate product' });
   }
-});
+);
 
 export default router;
