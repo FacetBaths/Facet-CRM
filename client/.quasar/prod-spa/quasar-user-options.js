@@ -17,5 +17,5 @@ import {Notify,Dialog,Loading} from 'quasar'
 
 
 
-export default { config: {},plugins: {Notify,Dialog,Loading} }
+export default { config: {"brand":{"primary":"#9945FF","secondary":"#14F195","accent":"#9C27B0","dark":"#1D1D1D","dark-page":"#121212","positive":"#21BA45","negative":"#C10015","info":"#31CCEC","warning":"#F2C037"}},plugins: {Notify,Dialog,Loading} }
 

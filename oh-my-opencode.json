@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "lsp": {
+    "typescript-language-server": {
+      "command": ["typescript-language-server", "--stdio"],
+      "extensions": [".ts", ".tsx", ".js", ".jsx"],
+      "priority": 10,
+      "initialization": {
+        "preferences": {
+          "importModuleSpecifierPreference": "relative"
+        }
+      }
+    },
+    "vue-language-server": {
+      "command": ["vue-language-server", "--stdio"],
+      "extensions": [".vue"],
+      "priority": 10,
+      "initialization": {
+        "vue": {
+          "hybridMode": false
+        }
+      }
+    },
+    "eslint": {
+      "command": ["vscode-eslint-language-server", "--stdio"],
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".vue"],
+      "priority": 5
+    }
+  }
+}
