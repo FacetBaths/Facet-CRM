@@ -33,8 +33,5 @@ export default function ({ app }: { app: import('vue').App }) {
   app.config.globalProperties.$axios = axios;
   app.config.globalProperties.$api = api;
 };
-  app.config.globalProperties.$axios = axios;
-  app.config.globalProperties.$api = api;
-});
 
 export { api };

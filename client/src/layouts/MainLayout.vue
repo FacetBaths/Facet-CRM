@@ -75,10 +75,10 @@
   </q-layout>
 </template>
 
-<script setup lang=\"ts\">
+<script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from 'src/stores/authStore';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const authStore = useAuthStore();

@@ -3,11 +3,6 @@ import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig((ctx) => {
   return {
-    eslint: {
-      warnings: true,
-      errors: true,
-    },
-
     boot: ['axios', 'socket'],
 
     css: ['app.scss'],
