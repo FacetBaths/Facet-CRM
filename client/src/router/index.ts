@@ -107,12 +107,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/FileUploadsPage.vue'),
         name: 'file-uploads',
       },
-      {
-        path: 'email',
-        component: () => import('@/pages/EmailPage.vue'),
-        name: 'email',
-      },
-    ],
+      {\n        path: 'email',\n        component: () => import('@/pages/EmailPage.vue'),\n        name: 'email',\n      },\n      {\n        path: 'settings',\n        component: () => import('@/pages/SettingsPage.vue'),\n        name: 'settings',\n        meta: { requiresAuth: true, roles: ['admin'] }\n      },\n    ],
   },
   {
     path: '/:catchAll(.*)*',

@@ -366,11 +366,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
+import { useRouter } from 'vue-router';
 import { api } from '@/boot/axios';
 import { useUserStore } from '@/stores/users';
+import { useAuthStore } from '@/stores/auth';
 
 const $q = useQuasar();
 const userStore = useUserStore();
+const authStore = useAuthStore();
+const router = useRouter();
+const $q = useQuasar();
 
 const activeTab = ref('general');
 const loading = ref(false);
@@ -630,6 +635,11 @@ const confirmDeleteMarket = (market: any) => {
 };
 
 onMounted(() => {
+  if (!authStore.user?.roles?.includes('admin')) {
+    router.push('/');
+    $q.notify({ type: 'negative', message: 'Access denied - Admin only' });
+    return;
+  }
   fetchSettings();
   fetchMarkets();
   userStore.fetchUsers();
